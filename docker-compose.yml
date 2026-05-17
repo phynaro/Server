@@ -1,0 +1,16 @@
+services:
+  web:
+    build: .
+    image: node:18-alpine
+    working_dir: /usr/src/app
+    volumes:
+      - ./:/usr/src/app
+    command: sh -c "npm install && node server.js" # Replace index.js with your actual server file
+    restart: unless-stopped
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    restart: unless-stopped
+    depends_on:
+      - web

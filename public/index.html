@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Line Production Flow Dashboard</title>
+    <style>
+        :root {
+            --primary: #005a9e;
+            --bg: #f3f2f1;
+            --card: #ffffff;
+            --text: #323130;
+            --success: #107c10;
+            --error: #a4262c;
+            --warning: #ffb900;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px; }
+        .kpi-card { background: var(--card); padding: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid var(--primary); }
+        .kpi-value { font-size: 1.8rem; font-weight: bold; margin: 5px 0; color: var(--primary); }
+        .kpi-label { font-size: 0.9rem; color: #666; font-weight: 600; text-transform: uppercase; }
+        
+        .station-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
+        th { background: #faf9f8; font-weight: 600; }
+        
+        .filters { display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; background: white; padding: 15px; border-radius: 4px; }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        input, button { padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 8px 16px; }
+        
+        .tag { background: #eee; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; }
+        .status-good { color: var(--success); font-weight: bold; }
+        .status-rej { color: var(--error); font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏭 Production Line Flow</h1>
+            <div id="lastUpdate">Last Update: --:--:--</div>
+        </header>
+
+        <div class="filters">
+            <div class="filter-group"><label>From</label><input type="date" id="fromDate"></div>
+            <div class="filter-group"><label>To</label><input type="date" id="toDate"></div>
+            <button onclick="refreshAll()">Update Dashboard</button>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card"><div class="kpi-label">Formed</div><div class="kpi-value" id="kpiFormed">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">Packed (Boxes)</div><div class="kpi-value" id="kpiPacked">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">Closed (Good)</div><div class="kpi-value" id="kpiClosed">0</div></div>
+            <div class="kpi-card"><div class="kpi-label">Pallets</div><div class="kpi-value" id="kpiPallets">0</div></div>
+        </div>
+
+        <div class="station-grid">
+            <div class="card">
+                <h2>📦 Case Packers 1-3</h2>
+                <table>
+                    <thead><tr><th>Source</th><th>Type</th><th>Boxes</th><th>Infeed (Qty)</th></tr></thead>
+                    <tbody id="packerBody"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h2>🏗️ Case Forming</h2>
+                <table>
+                    <thead><tr><th>Source</th><th>Type</th><th>Formed Count</th></tr></thead>
+                    <tbody id="formingBody"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h2>🔍 Cap Closer (Quality)</h2>
+                <div style="margin-bottom: 10px; display: flex; gap: 20px;">
+                    <div>Total Good: <span id="closerGood" class="status-good">0</span></div>
+                    <div>Total Rejected: <span id="closerRej" class="status-rej">0</span></div>
+                </div>
+                <table>
+                    <thead><tr><th>Product Type</th><th>Good</th><th>Reject</th><th>Quality %</th></tr></thead>
+                    <tbody id="closerBody"></tbody>
+                </table>
+            </div>
+            <div class="card">
+                <h2>🚚 Palletizer</h2>
+                <div style="margin-bottom: 10px;">Total Box Capacity: <strong id="palletCapacity">0</strong></div>
+                <table>
+                    <thead><tr><th>Type</th><th>Pallets</th><th>Capacity</th></tr></thead>
+                    <tbody id="palletizerBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📜 Recent Events (Raw Data)</h2>
+            <div style="max-height: 250px; overflow-y: auto;">
+                <table>
+                    <thead><tr><th>Local Time</th><th>Source</th><th>Product</th><th>Qty</th></tr></thead>
+                    <tbody id="rawBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const now = new Date();
+        const today = now.toISOString().split('T')[0];
+        document.getElementById('fromDate').value = today;
+        document.getElementById('toDate').value = today;
+
+        async function refreshAll() {
+            const from = document.getElementById('fromDate').value;
+            const to = document.getElementById('toDate').value;
+            
+            try {
+                // Fetch Summary
+                const sRes = await fetch(`/api/summary?from=${from}&to=${to}`);
+                const s = await sRes.json();
+                
+                // Update KPIs
+                const totalFormed = s.forming.reduce((a, b) => a + b.rowCount, 0);
+                const totalPacked = s.packers.reduce((a, b) => a + b.rowCount, 0);
+                document.getElementById('kpiFormed').innerText = totalFormed;
+                document.getElementById('kpiPacked').innerText = totalPacked;
+                document.getElementById('kpiClosed').innerText = s.closer.good;
+                document.getElementById('kpiPallets').innerText = s.palletizer.totalPallets;
+                document.getElementById('palletCapacity').innerText = s.palletizer.totalCapacity;
+                document.getElementById('closerGood').innerText = s.closer.good;
+                document.getElementById('closerRej').innerText = s.closer.reject;
+
+                // Update Tables
+                updateTable('packerBody', s.packers, r => `<td>${r.source}</td><td>${r.product}</td><td>${r.rowCount}</td><td>${r.totalQty}</td>`);
+                updateTable('formingBody', s.forming, r => `<td>${r.source}</td><td>${r.product}</td><td>${r.rowCount}</td>`);
+                updateTable('closerBody', s.closer.details, r => {
+                    const total = r.good + r.reject;
+                    const pct = total > 0 ? ((r.good / total) * 100).toFixed(1) : '0.0';
+                    return `<td>${r.product}</td><td>${r.good}</td><td class="status-rej">${r.reject}</td><td><strong>${pct}%</strong></td>`;
+                });
+                updateTable('palletizerBody', s.palletizer.details, r => `<td>${r.product}</td><td>${r.rowCount}</td><td>${r.capacity}</td>`);
+
+                // Fetch Raw
+                const rRes = await fetch(`/api/raw?from=${from}&to=${to}`);
+                const raw = await rRes.json();
+                updateTable('rawBody', raw, r => `<td>${r.LocalDateTime}</td><td><span class="tag">${r.Source}</span></td><td>${r.TypeOfProduct}</td><td>${r.Qty}</td>`);
+
+                document.getElementById('lastUpdate').innerText = 'Last Update: ' + new Date().toLocaleTimeString();
+            } catch (e) { console.error(e); }
+        }
+
+        function updateTable(id, data, rowFn) {
+            const body = document.getElementById(id);
+            body.innerHTML = data.length ? data.map(r => `<tr>${rowFn(r)}</tr>`).join('') : '<tr><td colspan="4" style="text-align:center">No data</td></tr>';
+        }
+
+        refreshAll();
+        setInterval(refreshAll, 10000);
+    </script>
+</body>
+</html>
