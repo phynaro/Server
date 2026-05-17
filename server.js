@@ -11,6 +11,14 @@ app.use(bodyParser.json());
 const dbPath = path.join(__dirname, 'target_database.db');
 const db = new sqlite3.Database(dbPath);
 
+// Performance Optimizations
+db.serialize(() => {
+    db.run("PRAGMA journal_mode=WAL");
+    db.run("PRAGMA synchronous=NORMAL");
+});
+
+const insertStmt = db.prepare(`INSERT INTO ReceivedData (SourceTimestamp, LocalTimestamp, TypeOfProduct, Qty, Source) VALUES (?, ?, ?, ?, ?)`);
+
 const productMapping = {
     "1": "60PA", "2": "60PB", "3": "50PA", "4": "50PB", "5": "30PA", "6": "30PB",
     "10": "60P", "20": "50P", "30": "30P",
@@ -94,53 +102,66 @@ app.get('/api/summary', (req, res) => {
             closer: { good: 0, reject: 0, details: [] },
             palletizer: { totalPallets: 0, totalCapacity: 0, details: [] }
         };
-// Process data into station-specific buckets
-const closerMap = new Map(); // For grouping Good/Reject by base product
+        // Maps for consolidation
+        const packerMap = new Map();
+        const formingMap = new Map();
+        const closerMap = new Map();
+        const palletizerMap = new Map();
 
-rows.forEach(row => {
-    const typeCode = Number(row.TypeOfProduct);
-    const isReject = typeCode >= 900;
-    const baseType = isReject ? (typeCode - 900) : typeCode;
-    const label = getProductLabel(baseType);
+        rows.forEach(row => {
+            const typeCode = Number(row.TypeOfProduct);
+            const isReject = typeCode >= 900;
+            const baseType = isReject ? (typeCode - 900) : typeCode;
+            const label = getProductLabel(baseType);
+            const fullLabel = getProductLabel(row.TypeOfProduct);
 
-    const data = {
-        date: row.ProdDate,
-        source: row.Source,
-        product: getProductLabel(row.TypeOfProduct), // Full label for others
-        rowCount: row.RowCount,
-        totalQty: row.TotalQty
-    };
+            if (row.Source.startsWith('CasePacker')) {
+                const key = `${row.Source}-${row.TypeOfProduct}`;
+                if (!packerMap.has(key)) {
+                    packerMap.set(key, { source: row.Source, product: fullLabel, rowCount: 0, totalQty: 0 });
+                }
+                const entry = packerMap.get(key);
+                entry.rowCount += row.RowCount;
+                entry.totalQty += row.TotalQty;
+            } else if (row.Source === 'CaseForming') {
+                const key = `${row.Source}-${row.TypeOfProduct}`;
+                if (!formingMap.has(key)) {
+                    formingMap.set(key, { source: row.Source, product: fullLabel, rowCount: 0 });
+                }
+                const entry = formingMap.get(key);
+                entry.rowCount += row.RowCount;
+            } else if (row.Source === 'CapCloser') {
+                if (isReject) summary.closer.reject += row.RowCount;
+                else summary.closer.good += row.RowCount;
 
-    if (row.Source.startsWith('CasePacker')) {
-        summary.packers.push(data);
-    } else if (row.Source === 'CaseForming') {
-        summary.forming.push(data);
-    } else if (row.Source === 'CapCloser') {
-        if (isReject) summary.closer.reject += row.RowCount;
-        else summary.closer.good += row.RowCount;
+                if (!closerMap.has(baseType)) {
+                    closerMap.set(baseType, { product: label, good: 0, reject: 0 });
+                }
+                const entry = closerMap.get(baseType);
+                if (isReject) entry.reject += row.RowCount;
+                else entry.good += row.RowCount;
+            } else if (row.Source === 'Palletizer') {
+                // Pallet Capacity Logic: Type 1,2 = 8 boxes, others = 6 boxes
+                const capacityPerPallet = (typeCode === 1 || typeCode === 2) ? 8 : 6;
+                const rowCapacity = row.RowCount * capacityPerPallet;
+                
+                summary.palletizer.totalPallets += row.RowCount;
+                summary.palletizer.totalCapacity += rowCapacity;
 
-        // Grouping logic for the table
-        if (!closerMap.has(baseType)) {
-            closerMap.set(baseType, { product: label, good: 0, reject: 0 });
-        }
-        const entry = closerMap.get(baseType);
-        if (isReject) entry.reject += row.RowCount;
-        else entry.good += row.RowCount;
-    } else if (row.Source === 'Palletizer') {
-        // Pallet Capacity Logic: Type 1,2 = 8 boxes, others = 6 boxes
-        const capacityPerPallet = (typeCode === 1 || typeCode === 2) ? 8 : 6;
-        const rowCapacity = row.RowCount * capacityPerPallet;
-        
-        summary.palletizer.totalPallets += row.RowCount;
-        summary.palletizer.totalCapacity += rowCapacity;
-        summary.palletizer.details.push({
-            ...data,
-            capacity: rowCapacity
+                const key = row.TypeOfProduct;
+                if (!palletizerMap.has(key)) {
+                    palletizerMap.set(key, { product: fullLabel, rowCount: 0, capacity: 0 });
+                }
+                const entry = palletizerMap.get(key);
+                entry.rowCount += row.RowCount;
+                entry.capacity += rowCapacity;
+            }
         });
-    }
-});
 
+        summary.packers = Array.from(packerMap.values());
+        summary.forming = Array.from(formingMap.values());
         summary.closer.details = Array.from(closerMap.values());
+        summary.palletizer.details = Array.from(palletizerMap.values());
         res.json(summary);
     });
 });
