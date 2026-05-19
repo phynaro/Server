@@ -2,6 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+const oeeHelper = require('./oee_helper');
 
 const app = express();
 const port = 3001;
@@ -89,6 +90,103 @@ db.serialize(() => {
         } else {
             console.log('ReceivedOEE table ready.');
         }
+    });
+
+    // Create QualityData table for Q metric
+    db.run(`CREATE TABLE IF NOT EXISTS QualityData (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        LocalTimestamp TEXT,
+        Machine TEXT,
+        ProductType TEXT,
+        BadCount INTEGER,
+        CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+        if (err) console.error('Error creating QualityData table:', err.message);
+        else console.log('QualityData table ready.');
+    });
+
+    // Create CycleTimes table for machine-specific ICT
+    db.run(`CREATE TABLE IF NOT EXISTS CycleTimes (
+        machine_id TEXT PRIMARY KEY,
+        ideal_cycle_time REAL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+        if (err) console.error('Error creating CycleTimes table:', err.message);
+        else console.log('CycleTimes table ready.');
+    });
+});
+
+/**
+ * Settings / Cycle Time Endpoints
+ */
+app.get('/api/settings/cycle-times', (req, res) => {
+    db.all(`SELECT * FROM CycleTimes`, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/settings/cycle-times', (req, res) => {
+    const { machine_id, ideal_cycle_time } = req.body;
+    if (!machine_id || ideal_cycle_time === undefined) {
+        return res.status(400).json({ error: 'Missing machine_id or ideal_cycle_time' });
+    }
+    const stmt = db.prepare(`INSERT INTO CycleTimes (machine_id, ideal_cycle_time, updated_at) 
+                             VALUES (?, ?, CURRENT_TIMESTAMP)
+                             ON CONFLICT(machine_id) DO UPDATE SET 
+                             ideal_cycle_time = excluded.ideal_cycle_time,
+                             updated_at = CURRENT_TIMESTAMP`);
+    stmt.run(machine_id, ideal_cycle_time, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Cycle time saved successfully' });
+    });
+    stmt.finalize();
+});
+
+/**
+ * Quality Data CRUD Endpoints
+ */
+app.get('/api/quality', (req, res) => {
+    const { from, to } = req.query;
+    let query = `SELECT * FROM QualityData`;
+    const params = [];
+    if (from && to) {
+        query += ` WHERE date(LocalTimestamp) BETWEEN ? AND ? `;
+        params.push(from, to);
+    }
+    query += ` ORDER BY LocalTimestamp DESC`;
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.post('/api/quality', (req, res) => {
+    const { LocalTimestamp, Machine, ProductType, BadCount } = req.body;
+    const stmt = db.prepare(`INSERT INTO QualityData (LocalTimestamp, Machine, ProductType, BadCount) VALUES (?, ?, ?, ?)`);
+    stmt.run(LocalTimestamp, Machine, ProductType, BadCount, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.status(201).json({ id: this.lastID });
+    });
+    stmt.finalize();
+});
+
+app.put('/api/quality/:id', (req, res) => {
+    const { LocalTimestamp, Machine, ProductType, BadCount } = req.body;
+    const { id } = req.params;
+    const stmt = db.prepare(`UPDATE QualityData SET LocalTimestamp = ?, Machine = ?, ProductType = ?, BadCount = ? WHERE id = ?`);
+    stmt.run(LocalTimestamp, Machine, ProductType, BadCount, id, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Updated successfully' });
+    });
+    stmt.finalize();
+});
+
+app.delete('/api/quality/:id', (req, res) => {
+    const { id } = req.params;
+    db.run(`DELETE FROM QualityData WHERE id = ?`, id, function(err) {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json({ message: 'Deleted successfully' });
     });
 });
 
@@ -509,6 +607,136 @@ app.get('/api/chart-palletizer', (req, res) => {
 
         res.json({ labels: dates, datasets });
     });
+});
+
+/**
+ * OEE Availability API
+ * Handles 6AM - 6AM shift logic and boundary edge cases.
+ */
+app.get('/api/oee', (req, res) => {
+    const { date, source, idealCycleTime } = req.query; // date: YYYY-MM-DD
+    if (!date || !source) return res.status(400).json({ error: 'Missing date or source' });
+
+    // Helper to proceed with calculation
+    const proceedWithOEE = (ict) => {
+        // Define Boundaries
+        // Adjust 'now' to Local Time (+7 Offset) for boundary comparison
+        const nowUTC = new Date();
+        const now = new Date(nowUTC.getTime() + (7 * 3600000));
+        
+        const startObj = new Date(date + 'T06:00:00');
+        const endObj = new Date(startObj);
+        endObj.setDate(endObj.getDate() + 1);
+
+        // If the shift is currently in progress, use "now" as the end boundary
+        let effectiveEndObj = endObj;
+        if (now > startObj && now < endObj) {
+            effectiveEndObj = now;
+        }
+
+        const pad = (n) => n.toString().padStart(2, '0');
+        const formatDate = (dt) => `${pad(dt.getMonth()+1)}/${pad(dt.getDate())}/${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())}`;
+        
+        const startBoundaryLocal = formatDate(startObj);
+        const endBoundaryLocal = formatDate(effectiveEndObj);
+
+        // Use SourceTimestamp for reliable SQL sorting/filtering
+        const startSQL = new Date(startObj.getTime() - (7 * 3600000)).toISOString().replace('Z', '');
+        const endSQL = new Date(effectiveEndObj.getTime() - (7 * 3600000)).toISOString().replace('Z', '');
+
+        // Production Count Mapping
+        const prodMapping = {
+            'CasePacker1_A': { source: 'CasePacker1', type: '1' },
+            'CasePacker1_B': { source: 'CasePacker1', type: '2' },
+            'CasePacker2_A': { source: 'CasePacker2', type: '3' },
+            'CasePacker2_B': { source: 'CasePacker2', type: '4' },
+            'CasePacker2_Both': { source: 'CasePacker2', types: ['3', '4'] },
+            'CasePacker3_A': { source: 'CasePacker3', type: '5' },
+            'CasePacker3_B': { source: 'CasePacker3', type: '6' },
+            'CaseForming': { source: 'CaseForming', types: ['10', '20', '30'] }
+        };
+
+        const mapping = prodMapping[source];
+        let countQuery = "SELECT COUNT(*) as Count FROM ReceivedData WHERE 1=0"; // Default to 0
+        let countParams = [];
+
+        if (mapping) {
+            if (mapping.types) {
+                countQuery = `SELECT COUNT(*) as Count FROM ReceivedData WHERE Source = ? AND TypeOfProduct IN (${mapping.types.map(()=>'?').join(',')}) AND SourceTimestamp BETWEEN ? AND ?`;
+                countParams = [mapping.source, ...mapping.types, startSQL, endSQL];
+            } else {
+                countQuery = `SELECT COUNT(*) as Count FROM ReceivedData WHERE Source = ? AND TypeOfProduct = ? AND SourceTimestamp BETWEEN ? AND ?`;
+                countParams = [mapping.source, mapping.type, startSQL, endSQL];
+            }
+        }
+
+        db.get(countQuery, countParams, (err, countRow) => {
+            const totalCount = countRow ? countRow.Count : 0;
+            console.log(`[OEE Debug] Source: ${source}, TotalCount: ${totalCount}, Start: ${startSQL}, End: ${endSQL}, ICT: ${ict}`);
+
+            // Fetch Bad Count for Quality (Q)
+            let badCountQuery = "SELECT SUM(BadCount) as TotalBad FROM QualityData WHERE Machine = ? AND date(LocalTimestamp) = ?";
+            let badCountParams = [source, date];
+
+            // Specific mapping for CaseForming to include 10, 20, 30
+            if (source === 'CaseForming') {
+                badCountQuery = "SELECT SUM(BadCount) as TotalBad FROM QualityData WHERE Machine = 'CaseForming' AND ProductType IN ('10','20','30') AND date(LocalTimestamp) = ?";
+                badCountParams = [date];
+            } else if (mapping) {
+                badCountQuery = "SELECT SUM(BadCount) as TotalBad FROM QualityData WHERE Machine = ? AND ProductType = ? AND date(LocalTimestamp) = ?";
+                badCountParams = [source, mapping.type, date];
+            }
+
+            db.get(badCountQuery, badCountParams, (err, badRow) => {
+                const badCount = badRow ? (badRow.TotalBad || 0) : 0;
+
+                const beforeQuery = `SELECT * FROM ReceivedOEE WHERE Source = ? AND SourceTimestamp < ? ORDER BY SourceTimestamp DESC LIMIT 1`;
+                const rangeQuery = `SELECT * FROM ReceivedOEE WHERE Source = ? AND SourceTimestamp BETWEEN ? AND ? ORDER BY SourceTimestamp ASC`;
+
+                db.get(beforeQuery, [source, startSQL], (err, beforeRow) => {
+                    if (err) return res.status(500).json({ error: err.message });
+
+                    db.all(rangeQuery, [source, startSQL, endSQL], (err, rangeRows) => {
+                        if (err) return res.status(500).json({ error: err.message });
+
+                        let finalRows = [];
+
+                        if (beforeRow) {
+                            beforeRow.LocalTimestamp = startBoundaryLocal;
+                            finalRows.push(beforeRow);
+                        } else if (rangeRows.length > 0) {
+                            const first = { ...rangeRows[0] };
+                            first.LocalTimestamp = startBoundaryLocal;
+                            finalRows.push(first);
+                        }
+
+                        finalRows = finalRows.concat(rangeRows);
+
+                        if (finalRows.length > 0) {
+                            const last = finalRows[finalRows.length - 1];
+                            finalRows.push({
+                                ...last,
+                                LocalTimestamp: endBoundaryLocal,
+                                StateCode: last.StateCode
+                            });
+                        }
+
+                        const results = oeeHelper.calculateStateDurations(finalRows, false, ict, totalCount, badCount);
+                        res.json(results);
+                    });
+                });
+            });
+        });
+    };
+
+    if (idealCycleTime) {
+        proceedWithOEE(parseFloat(idealCycleTime));
+    } else {
+        db.get(`SELECT ideal_cycle_time FROM CycleTimes WHERE machine_id = ?`, [source], (err, row) => {
+            const ict = row ? row.ideal_cycle_time : 10; // Default to 10 if not found
+            proceedWithOEE(ict);
+        });
+    }
 });
 
 app.listen(port, () => {

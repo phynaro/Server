@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Ideal Cycle Time</title>
+    <style>
+        :root {
+            --primary: #0056b3; 
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --text: #333333;
+            --success: #107c10;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        header { 
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-bottom: 4px solid var(--primary);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        th { background: #faf9f8; font-weight: 600; color: #666; }
+        
+        input { padding: 8px; border: 1px solid #ccc; border-radius: 4px; width: 80px; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 8px 15px; border-radius: 4px; }
+        button:hover { background: #004494; }
+        .nav-link { text-decoration: none; color: var(--primary); font-weight: 600; font-size: 0.9rem; }
+        .status-msg { margin-top: 10px; font-size: 0.9rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div style="font-weight: 800; color: #444;">SETTINGS</div>
+                <div style="font-weight: bold; border-left: 2px solid #ccc; padding-left: 15px; color: #666;">Cycle Time Management</div>
+            </div>
+            <a href="oee.html" class="nav-link">← Back to OEE Dashboard</a>
+        </header>
+
+        <div class="card">
+            <h2>Ideal Cycle Times (Seconds per Case)</h2>
+            <table id="settingsTable">
+                <thead>
+                    <tr>
+                        <th>Machine Source</th>
+                        <th>Ideal Cycle Time (s)</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody id="settingsBody">
+                    <!-- Rows will be populated by JS -->
+                </tbody>
+            </table>
+            <div id="statusMsg" class="status-msg"></div>
+        </div>
+    </div>
+
+    <script>
+        const machines = [
+            { id: 'CasePacker1_A', name: 'Case Packer 1 - Side A' },
+            { id: 'CasePacker1_B', name: 'Case Packer 1 - Side B' },
+            { id: 'CasePacker2_A', name: 'Case Packer 2 - Side A' },
+            { id: 'CasePacker2_B', name: 'Case Packer 2 - Side B' },
+            { id: 'CasePacker3_A', name: 'Case Packer 3 - Side A' },
+            { id: 'CasePacker3_B', name: 'Case Packer 3 - Side B' },
+            { id: 'CaseForming', name: 'Case Forming' }
+        ];
+
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings/cycle-times');
+                const storedData = await response.json();
+                const settingsMap = new Map(storedData.map(d => [d.machine_id, d.ideal_cycle_time]));
+
+                const tbody = document.getElementById('settingsBody');
+                tbody.innerHTML = '';
+
+                machines.forEach(m => {
+                    const tr = document.createElement('tr');
+                    const currentVal = settingsMap.get(m.id) || 10.0;
+                    tr.innerHTML = `
+                        <td>${m.name}</td>
+                        <td><input type="number" step="0.1" value="${currentVal}" id="ict-${m.id}"></td>
+                        <td><button onclick="saveICT('${m.id}')">Save</button></td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            } catch (err) {
+                console.error('Error loading settings:', err);
+            }
+        }
+
+        async function saveICT(machineId) {
+            const ict = document.getElementById(`ict-${machineId}`).value;
+            const statusMsg = document.getElementById('statusMsg');
+            
+            try {
+                const response = await fetch('/api/settings/cycle-times', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ machine_id: machineId, ideal_cycle_time: parseFloat(ict) })
+                });
+                
+                if (response.ok) {
+                    statusMsg.innerText = `Saved ${machineId} successfully!`;
+                    statusMsg.style.color = 'var(--success)';
+                    setTimeout(() => statusMsg.innerText = '', 3000);
+                } else {
+                    throw new Error('Failed to save');
+                }
+            } catch (err) {
+                statusMsg.innerText = 'Error saving settings.';
+                statusMsg.style.color = 'var(--error)';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSettings);
+    </script>
+</body>
+</html>

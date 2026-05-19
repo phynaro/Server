@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quality Data Management - Thantawan Industry Vietnam</title>
+    <style>
+        :root {
+            --primary: #0056b3; 
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --text: #333333;
+            --error: #a4262c;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1000px; margin: 0 auto; }
+        header { 
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-bottom: 4px solid var(--primary);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .company-name { font-size: 1rem; font-weight: 800; color: #444; text-transform: uppercase; }
+        
+        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        
+        form { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 15px; align-items: flex-end; }
+        .form-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-size: 0.8rem; font-weight: 600; color: #666; }
+        input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
+        button.delete { background: var(--error); }
+
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
+        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
+        th { background: #faf9f8; color: #666; }
+        
+        .nav-link { text-decoration: none; color: var(--primary); font-weight: 600; font-size: 0.9rem; }
+
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding: 10px; }
+        .pagination button { background: #eee; color: #333; padding: 5px 15px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .pagination span { font-weight: 600; font-size: 0.9rem; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="company-name">Thantawan Industry Vietnam</div>
+            <a href="oee.html" class="nav-link">← Back to OEE Dashboard</a>
+        </header>
+
+        <div class="card">
+            <h2>Record Bad Count (Quality Data)</h2>
+            <form id="qualityForm">
+                <div class="form-group">
+                    <label>Date/Time</label>
+                    <input type="datetime-local" id="qTimestamp" required>
+                </div>
+                <div class="form-group">
+                    <label>Machine</label>
+                    <select id="qMachine" required onchange="updateProductTypes()">
+                        <option value="CasePacker1_A">Case Packer 1 - Side A</option>
+                        <option value="CasePacker1_B">Case Packer 1 - Side B</option>
+                        <option value="CasePacker2_A">Case Packer 2 - Side A</option>
+                        <option value="CasePacker2_B">Case Packer 2 - Side B</option>
+                        <option value="CasePacker3_A">Case Packer 3 - Side A</option>
+                        <option value="CasePacker3_B">Case Packer 3 - Side B</option>
+                        <option value="CaseForming">Case Forming</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Product Type</label>
+                    <select id="qType" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Bad Count (Cases)</label>
+                    <input type="number" id="qBadCount" min="0" required value="0">
+                </div>
+                <button type="submit" id="submitBtn">Save Record</button>
+            </form>
+        </div>
+
+        <div class="card">
+            <h2>Quality Data Logs</h2>
+            <table id="qualityTable">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>Machine</th>
+                        <th>Type</th>
+                        <th>Bad Count</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+            <div class="pagination">
+                <button id="prevPage" onclick="changePage(-1)">Previous</button>
+                <span id="pageInfo">Page 1</span>
+                <button id="nextPage" onclick="changePage(1)">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const machineTypes = {
+            'CasePacker1_A': ['1'],
+            'CasePacker1_B': ['2'],
+            'CasePacker2_A': ['3'],
+            'CasePacker2_B': ['4'],
+            'CasePacker3_A': ['5'],
+            'CasePacker3_B': ['6'],
+            'CaseForming': ['10', '20', '30']
+        };
+
+        const typeLabels = {
+            '1': '60P', '2': '60P',
+            '3': '50P', '4': '50P',
+            '5': '30P', '6': '30P',
+            '10': '60P', '20': '50P', '30': '30P'
+        };
+
+        let allQualityData = [];
+        let currentPage = 1;
+        const recordsPerPage = 20;
+
+        function updateProductTypes() {
+            const machine = document.getElementById('qMachine').value;
+            const typeSelect = document.getElementById('qType');
+            typeSelect.innerHTML = '';
+            machineTypes[machine].forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.textContent = typeLabels[t] || ('Type ' + t);
+                typeSelect.appendChild(opt);
+            });
+        }
+
+        // Initialize form
+        const now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        document.getElementById('qTimestamp').value = now.toISOString().slice(0, 16);
+        updateProductTypes();
+
+        // Load Data
+        async function loadData() {
+            try {
+                const res = await fetch('/api/quality');
+                allQualityData = await res.json();
+                renderTable();
+            } catch (err) {
+                console.error('Error loading quality data:', err);
+            }
+        }
+
+        function renderTable() {
+            const tbody = document.querySelector('#qualityTable tbody');
+            tbody.innerHTML = '';
+
+            const startIndex = (currentPage - 1) * recordsPerPage;
+            const endIndex = startIndex + recordsPerPage;
+            const paginatedData = allQualityData.slice(startIndex, endIndex);
+
+            paginatedData.forEach(row => {
+                const tr = document.createElement('tr');
+                const label = typeLabels[row.ProductType] || ('Type ' + row.ProductType);
+                tr.innerHTML = `
+                    <td>${row.LocalTimestamp.replace('T', ' ')}</td>
+                    <td>${row.Machine}</td>
+                    <td>${label}</td>
+                    <td>${row.BadCount}</td>
+                    <td>
+                        <button class="delete" onclick="deleteRecord(${row.id})">Delete</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Update Pagination Controls
+            const totalPages = Math.ceil(allQualityData.length / recordsPerPage) || 1;
+            document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prevPage').disabled = currentPage === 1;
+            document.getElementById('nextPage').disabled = currentPage >= totalPages;
+        }
+
+        function changePage(delta) {
+            currentPage += delta;
+            renderTable();
+        }
+
+        // Handle Submit
+        document.getElementById('qualityForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const payload = {
+                LocalTimestamp: document.getElementById('qTimestamp').value,
+                Machine: document.getElementById('qMachine').value,
+                ProductType: document.getElementById('qType').value,
+                BadCount: parseInt(document.getElementById('qBadCount').value)
+            };
+
+            await fetch('/api/quality', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            document.getElementById('qBadCount').value = 0;
+            currentPage = 1; // Reset to first page
+            loadData();
+        };
+
+        async function deleteRecord(id) {
+            if (confirm('Delete this record?')) {
+                await fetch(`/api/quality/${id}`, { method: 'DELETE' });
+                loadData();
+            }
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

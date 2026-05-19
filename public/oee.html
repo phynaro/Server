@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine OEE - Thantawan Industry Vietnam</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        :root {
+            --primary: #0056b3; 
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --text: #333333;
+            --success: #107c10;
+            --error: #a4262c;
+            --warning: #ffb900;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1850px; margin: 0 auto; }
+        header { 
+            background: white;
+            padding: 15px 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            border-bottom: 4px solid var(--primary);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .company-name { font-size: 1rem; font-weight: 800; color: #444; text-transform: uppercase; }
+        
+        .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
+        .kpi-card { background: var(--card); padding: 12px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid var(--primary); position: relative; }
+        .kpi-card:hover { z-index: 10; }
+        .kpi-value { font-size: 1.8rem; font-weight: bold; margin: 5px 0; color: var(--primary); }
+        .kpi-label { font-size: 0.8rem; color: #666; font-weight: 600; text-transform: uppercase; }
+        
+        .filters { display: flex; gap: 15px; align-items: flex-end; margin-bottom: 20px; background: white; padding: 15px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .filter-group { display: flex; flex-direction: column; gap: 5px; }
+        select, input, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 10px 20px; }
+        button:hover { background: #004494; }
+
+        .station-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
+        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
+        th { background: #faf9f8; font-weight: 600; color: #666; cursor: pointer; position: relative; }
+        th:hover { background: #f0f0f0; }
+        th.sort-asc::after { content: ' \25B2'; font-size: 0.7rem; }
+        th.sort-desc::after { content: ' \25BC'; font-size: 0.7rem; }
+        
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        .card-header h2 { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+        
+        .btn-export { background: #107c10; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-weight: 600; }
+        .btn-export:hover { background: #0b5a0b; }
+
+        .nav-link { text-decoration: none; color: var(--primary); font-weight: 600; font-size: 0.9rem; }
+
+        /* Tooltip Styles */
+        .tooltip { position: absolute; top: 10px; right: 10px; cursor: pointer; z-index: 5; }
+        .tooltip .info-icon { 
+            width: 18px; height: 18px; background: #f0f0f0; color: #888; 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            font-size: 11px; font-weight: bold; font-family: serif; font-style: italic; border: 1px solid #ddd;
+        }
+        .tooltip .tooltiptext {
+            visibility: hidden; width: 240px; background-color: #333; color: #fff;
+            text-align: left; border-radius: 6px; padding: 12px; position: absolute;
+            z-index: 100; right: 0; top: 25px; opacity: 0; transition: opacity 0.3s;
+            font-size: 0.75rem; font-weight: normal; line-height: 1.5; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            text-transform: none; pointer-events: none;
+        }
+        .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+
+        @media (max-width: 1000px) {
+            .station-grid { grid-template-columns: 1fr; }
+            .filters { flex-direction: column; align-items: stretch; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div style="display: flex; align-items: center; gap: 20px;">
+                <div class="company-name">Thantawan Industry Vietnam</div>
+                <div style="font-weight: bold; border-left: 2px solid #ccc; padding-left: 15px; color: #666;">OEE Dashboard</div>
+            </div>
+            <div style="display: flex; gap: 20px;">
+                <a href="settings.html" class="nav-link" style="color: var(--primary); border: 1px solid var(--primary); padding: 5px 10px; border-radius: 4px;">⚙ Settings</a>
+                <a href="quality.html" class="nav-link" style="color: var(--error);">Manage Quality Data</a>
+                <a href="index.html" class="nav-link">← Production Dashboard</a>
+            </div>
+        </header>
+
+        <div class="filters">
+            <div class="filter-group">
+                <label class="kpi-label">Machine Source</label>
+                <select id="machineSelect" onchange="fetchStoredICT()">
+                    <option value="CasePacker1_A">Case Packer 1 - Side A</option>
+                    <option value="CasePacker1_B">Case Packer 1 - Side B</option>
+                    <option value="CasePacker2_A">Case Packer 2 - Side A</option>
+                    <option value="CasePacker2_B">Case Packer 2 - Side B</option>
+                    <option value="CasePacker3_A">Case Packer 3 - Side A</option>
+                    <option value="CasePacker3_B">Case Packer 3 - Side B</option>
+                    <option value="CaseForming">Case Forming</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="kpi-label">Shift Start Date (6:00 AM)</label>
+                <input type="date" id="dateFilter">
+            </div>
+            <div class="filter-group">
+                <label class="kpi-label">Active ICT (s/case)</label>
+                <div id="ictDisplay" style="padding: 10px; border: 1px solid #eee; background: #fafafa; border-radius: 4px; font-weight: bold; min-width: 60px; text-align: center;">--</div>
+            </div>
+            <button onclick="updateDashboard()">Refresh Data</button>
+        </div>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <div class="tooltip">
+                    <div class="info-icon">i</div>
+                    <span class="tooltiptext">
+                        <b>Operational Availability (A)</b><br>
+                        Formula: <i>Running Time / (Total Time - Planned Stops)</i><br><br>
+                        Measures pure production time. Only State 1 (Running) is considered "Up". Everything else is downtime.
+                    </span>
+                </div>
+                <div class="kpi-label">Operational Availability</div>
+                <div class="kpi-value" id="kpiOpAvail">0.0%</div>
+                <div style="font-size: 0.75rem; color: #888;">'Running' vs Active Time</div>
+            </div>
+            <div class="kpi-card">
+                <div class="tooltip">
+                    <div class="info-icon">i</div>
+                    <span class="tooltiptext">
+                        <b>Performance (P)</b><br>
+                        Formula: <i>(Ideal Cycle Time × Total Produced) / Actual Running Time</i><br><br>
+                        Measures machine speed capability. It only looks at the time the machine was strictly in State 1 (Running).
+                    </span>
+                </div>
+                <div class="kpi-label">Performance (P)</div>
+                <div class="kpi-value" id="kpiPerformance">0.0%</div>
+                <div style="font-size: 0.75rem; color: #888;">Total Produced: 0 cases</div>
+            </div>
+            <div class="kpi-card">
+                <div class="tooltip">
+                    <div class="info-icon">i</div>
+                    <span class="tooltiptext">
+                        <b>Quality (Q)</b><br>
+                        Formula: <i>(Total Produced - Bad Count) / Total Produced</i><br><br>
+                        Measures first-pass yield. Rejects/Bad cases are manually logged in the Quality management page.
+                    </span>
+                </div>
+                <div class="kpi-label">Quality (Q)</div>
+                <div class="kpi-value" id="kpiQuality">0.0%</div>
+                <div style="font-size: 0.75rem; color: #888;">Rejects: 0 cases</div>
+            </div>
+            <div class="kpi-card" style="border-top-color: var(--success);">
+                <div class="tooltip">
+                    <div class="info-icon">i</div>
+                    <span class="tooltiptext">
+                        <b>Overall OEE</b><br>
+                        Formula: <i>Availability (A) × Performance (P) × Quality (Q)</i><br><br>
+                        The comprehensive gold-standard score for manufacturing efficiency.
+                    </span>
+                </div>
+                <div class="kpi-label" style="color: var(--success);">Overall OEE</div>
+                <div class="kpi-value" id="kpiOee" style="color: var(--success);">0.0%</div>
+                <div style="font-size: 0.75rem; color: #888;">A x P x Q</div>
+            </div>
+            <div class="kpi-card">
+                <div class="tooltip">
+                    <div class="info-icon">i</div>
+                    <span class="tooltiptext">
+                        <b>Technical Availability</b><br>
+                        Formula: <i>(Running + Starved + Blocked) / (Total Time - Planned Stops)</i><br><br>
+                        Focuses on machine reliability by ignoring external bottlenecks (missing infeed or full outfeed).
+                    </span>
+                </div>
+                <div class="kpi-label">Technical Availability</div>
+                <div class="kpi-value" id="kpiTechAvail">0.0%</div>
+                <div style="font-size: 0.75rem; color: #888;">Machine Reliability</div>
+            </div>
+            <div class="kpi-card">
+                <div class="tooltip">
+                    <div class="info-icon">i</div>
+                    <span class="tooltiptext">
+                        <b>MTBF</b><br>
+                        Formula: <i>(Running + Starved + Blocked) / Number of Failures</i><br><br>
+                        Mean Time Between Failures. Measures how long the machine typically runs before a mechanical failure occurs.
+                    </span>
+                </div>
+                <div class="kpi-label">MTBF</div>
+                <div class="kpi-value" id="kpiMtbf">0m</div>
+                <div style="font-size: 0.75rem; color: #888;">Mean Time Between Failures</div>
+            </div>
+            <div class="kpi-card">
+                <div class="tooltip">
+                    <div class="info-icon">i</div>
+                    <span class="tooltiptext">
+                        <b>MTTR</b><br>
+                        Formula: <i>Total Fault Duration / Number of Faults</i><br><br>
+                        Mean Time To Repair. Measures the average response and repair speed of the maintenance team.
+                    </span>
+                </div>
+                <div class="kpi-label">MTTR</div>
+                <div class="kpi-value" id="kpiMttr">0m</div>
+                <div style="font-size: 0.75rem; color: #888;">Mean Time To Repair</div>
+            </div>
+        </div>
+
+        <div class="station-grid">
+            <div class="card">
+                <h2>State Distribution (%)</h2>
+                <div style="height: 300px;"><canvas id="stateChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h2>Top 5 Losses (Downtime Pareto)</h2>
+                <div style="height: 300px;"><canvas id="paretoChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Timeline Details (6AM - 6AM)</h2>
+                <button class="btn-export" onclick="exportToExcel()">Excel Export</button>
+            </div>
+            <div style="max-height: 500px; overflow-y: auto;">
+                <table id="timelineTable">
+                    <thead>
+                        <tr>
+                            <th onclick="sortTimeline(0)">Start Time</th>
+                            <th onclick="sortTimeline(1)">State</th>
+                            <th onclick="sortTimeline(2)">Reason</th>
+                            <th onclick="sortTimeline(3)">Duration (s)</th>
+                            <th onclick="sortTimeline(4)">Duration (min)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="timelineBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="oee_client.js"></script>
+</body>
+</html>
