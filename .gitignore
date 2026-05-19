@@ -55,3 +55,4 @@ ehthumbs.db
 # SQLite temporary files
 *.db-shm
 *.db-wal
+target_database.db
