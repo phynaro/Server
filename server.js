@@ -73,6 +73,23 @@ db.serialize(() => {
             });
         }
     });
+
+    // Create ReceivedOEE table for OEE syncs
+    db.run(`CREATE TABLE IF NOT EXISTS ReceivedOEE (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        SourceTimestamp TEXT,
+        LocalTimestamp TEXT,
+        StateCode INTEGER,
+        ReasonCode INTEGER,
+        Source TEXT,
+        ServerReceivedTimestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+        if (err) {
+            console.error('Error creating ReceivedOEE table:', err.message);
+        } else {
+            console.log('ReceivedOEE table ready.');
+        }
+    });
 });
 
 app.post('/api/data', (req, res) => {
@@ -89,6 +106,25 @@ app.post('/api/data', (req, res) => {
         res.status(200).json({ message: 'Data received and stored', id: this.lastID });
     });
     stmt.finalize();
+});
+
+// OEE ingestion endpoint
+app.post('/api/oee', (req, res) => {
+    const { Timestamp, LocalTimestamp, StateCode, ReasonCode, Source } = req.body;
+
+    if (!Timestamp || (StateCode === undefined || StateCode === null)) {
+        return res.status(400).json({ error: 'Missing required fields: Timestamp or StateCode' });
+    }
+
+    const stmtOEE = db.prepare(`INSERT INTO ReceivedOEE (SourceTimestamp, LocalTimestamp, StateCode, ReasonCode, Source) VALUES (?, ?, ?, ?, ?)`);
+    stmtOEE.run(Timestamp, LocalTimestamp, StateCode, ReasonCode, Source || 'Unknown', function(err) {
+        if (err) {
+            console.error('Error inserting OEE data:', err.message);
+            return res.status(500).json({ error: err.message });
+        }
+        res.status(200).json({ message: 'OEE data received and stored', id: this.lastID });
+    });
+    stmtOEE.finalize();
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
