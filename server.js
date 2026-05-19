@@ -104,11 +104,12 @@ app.get('/api/summary', (req, res) => {
             COUNT(*) as RowCount,
             SUM(Qty) as TotalQty
         FROM ReceivedData 
+        WHERE NOT (Source = 'CaseForming' AND TypeOfProduct IN ('0', '1000'))
     `;
     const params = [];
 
     if (from && to) {
-        query += ` WHERE date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
+        query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
         params.push(from, to);
     }
 
@@ -124,7 +125,7 @@ app.get('/api/summary', (req, res) => {
             packers: [],
             forming: [],
             closer: { good: 0, reject: 0, details: [] },
-            palletizer: { totalPallets: 0, totalCapacity: 0, details: [] }
+            palletizer: { totalPallets: 0, totalCases: 0, details: [] }
         };
         // Maps for consolidation
         const packerMap = new Map();
@@ -171,20 +172,20 @@ app.get('/api/summary', (req, res) => {
                 if (isReject) entry.reject += row.RowCount;
                 else entry.good += row.RowCount;
             } else if (row.Source === 'Palletizer') {
-                // Pallet Capacity Logic: Type 1,2 = 8 boxes, others = 6 boxes
-                const capacityPerPallet = (typeCode === 1 || typeCode === 2) ? 8 : 6;
-                const rowCapacity = row.RowCount * capacityPerPallet;
+                // Pallet Case Logic: Type 1,2 = 8 cases, others = 6 cases
+                const casesPerPallet = (typeCode === 1 || typeCode === 2) ? 8 : 6;
+                const rowCases = row.RowCount * casesPerPallet;
                 
                 summary.palletizer.totalPallets += row.RowCount;
-                summary.palletizer.totalCapacity += rowCapacity;
+                summary.palletizer.totalCases += rowCases;
 
                 const key = row.TypeOfProduct;
                 if (!palletizerMap.has(key)) {
-                    palletizerMap.set(key, { product: fullLabel, rowCount: 0, capacity: 0 });
+                    palletizerMap.set(key, { product: fullLabel, rowCount: 0, casesCount: 0 });
                 }
                 const entry = palletizerMap.get(key);
                 entry.rowCount += row.RowCount;
-                entry.capacity += rowCapacity;
+                entry.casesCount += rowCases;
             }
         });
 
@@ -193,14 +194,14 @@ app.get('/api/summary', (req, res) => {
             if (entry.typeCode === 1 || entry.typeCode === 2) expectedPerBox = 51;
             else if (entry.typeCode >= 3 && entry.typeCode <= 6) expectedPerBox = 49;
             
-            const expectedInfeed = entry.rowCount * expectedPerBox;
+            const expectedCarton = entry.rowCount * expectedPerBox;
             return {
                 source: entry.source,
                 product: entry.product,
                 rowCount: entry.rowCount,
                 totalQty: entry.totalQty,
-                expectedInfeed: expectedInfeed,
-                diff: entry.totalQty - expectedInfeed
+                expectedCarton: expectedCarton,
+                diff: entry.totalQty - expectedCarton
             };
         }).sort((a, b) => a.source.localeCompare(b.source) || a.product.localeCompare(b.product));
         summary.forming = Array.from(formingMap.values()).sort((a, b) => a.product.localeCompare(b.product));
@@ -300,7 +301,7 @@ app.get('/api/chart-forming', (req, res) => {
             date(SourceTimestamp, '+1 hour') as ProdDate, 
             COUNT(*) as RowCount
         FROM ReceivedData 
-        WHERE Source = 'CaseForming'
+        WHERE Source = 'CaseForming' AND TypeOfProduct NOT IN ('0', '1000')
     `;
     const params = [];
 
@@ -448,11 +449,11 @@ app.get('/api/chart-palletizer', (req, res) => {
 
         productTypes.forEach(typeCode => {
             const label = getProductLabel(typeCode);
-            const capacityPerPallet = (typeCode === "1" || typeCode === "2") ? 8 : 6;
+            const casesPerPallet = (typeCode === "1" || typeCode === "2") ? 8 : 6;
 
             const data = dates.map(date => {
                 const row = rows.find(r => r.ProdDate === date && r.TypeOfProduct === typeCode);
-                return row ? (row.PalletCount * capacityPerPallet) : 0;
+                return row ? (row.PalletCount * casesPerPallet) : 0;
             });
 
             const palletCounts = dates.map(date => {
