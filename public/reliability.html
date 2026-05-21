@@ -5,155 +5,26 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Machine Reliability Trends - Thantawan Industry Vietnam</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="shared.css">
+    <script src="shared.js"></script>
     <style>
-        :root {
-            --primary: #0056b3; 
-            --bg: #f8f9fa;
-            --card: #ffffff;
-            --text: #333333;
-            --success: #107c10;
-            --error: #a4262c;
-            --warning: #ffb900;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-        }
-        .container { max-width: 1850px; margin: 0 auto; }
-        header { 
-            background: white;
-            padding: 12px 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border-bottom: 4px solid var(--primary);
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .brand-group { display: flex; align-items: center; gap: 20px; flex: 1; }
-        .logo { height: 40px; width: auto; }
-        .brand-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-        .company-name { font-size: 0.9rem; font-weight: 800; color: #333; text-transform: uppercase; line-height: 1; }
-        .dashboard-title { font-weight: 600; color: #888; font-size: 0.75rem; margin: 0; padding: 0; border: none; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .filters { 
-            display: flex; 
-            gap: 20px; 
-            align-items: center; 
-            margin-bottom: 25px; 
-            background: white; 
-            padding: 25px 20px 12px 20px; 
-            border-radius: 8px; 
-            border: 1px solid #eee;
-            width: 100%;
-            box-sizing: border-box;
-            position: relative;
-            flex-wrap: wrap;
-        }
-        @media (max-width: 768px) {
-            .filters { padding-top: 45px; flex-direction: column; align-items: stretch; gap: 15px; }
-        }
-        .filter-group { display: flex; align-items: center; gap: 10px; }
-        label { font-size: 0.8rem; font-weight: 600; color: #666; white-space: nowrap; }
-        select, input, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 10px 20px; }
-        button:hover { background: #004494; }
-
-        .status-box { 
-            position: absolute; 
-            top: 8px; 
-            right: 20px; 
-            font-size: 0.75rem; 
-            color: #666; 
-            font-weight: 600;
-        }
-
-        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
-        
+        .card { margin-bottom: 20px; }
         .chart-container { height: 450px; position: relative; }
         .chart-grid { display: flex; flex-direction: column; gap: 20px; margin-bottom: 20px; }
         .chart-grid .card { margin-bottom: 0; }
         @media (min-width: 1500px) {
             .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
         }
-        
-        .nav-link { 
-            text-decoration: none; 
-            color: #666; 
-            font-weight: 600; 
-            font-size: 0.9rem; 
-            transition: color 0.2s;
+        table { font-size: 0.85rem; }
+        .heatmap-day-labels { display: grid; grid-template-rows: repeat(7, 16px); gap: 2px; font-size: 0.65rem; color: #888; align-items: center; flex-shrink: 0; }
+        .heatmap-cell { position: relative; border-radius: 2px; cursor: pointer; }
+        .heatmap-cell .cell-tip {
+            visibility: hidden; opacity: 0; position: absolute; bottom: calc(100% + 6px); left: 50%;
+            transform: translateX(-50%); background: #333; color: #fff; font-size: 0.7rem;
+            white-space: nowrap; padding: 4px 8px; border-radius: 4px;
+            pointer-events: none; z-index: 100; transition: opacity 0.15s;
         }
-        .nav-link:hover { color: var(--primary); }
-
-        .nav-menu {
-            display: flex;
-            gap: 25px;
-            align-items: center;
-        }
-
-        /* Mobile Menu Styles */
-        .menu-toggle {
-            display: none;
-            flex-direction: column;
-            gap: 4px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 5px;
-            z-index: 10;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .menu-toggle span {
-            display: block;
-            width: 24px;
-            height: 2px;
-            background-color: #333;
-            border-radius: 1px;
-        }
-
-        @media (max-width: 1000px) {
-            header { 
-                flex-wrap: wrap; 
-                padding: 15px 20px; 
-                justify-content: space-between;
-            }
-            .menu-toggle { display: flex; }
-            .nav-menu { 
-                display: none; 
-                flex-direction: column; 
-                width: 100%; 
-                margin-top: 15px; 
-                padding-top: 15px; 
-                border-top: 1px solid #f0f0f0; 
-                gap: 5px;
-                align-items: flex-start;
-            }
-            .nav-menu.active { display: flex; }
-            .nav-link { 
-                padding: 12px 0; 
-                width: 100%; 
-                color: #444;
-            }
-            .status-box { position: static; width: 100%; border-top: 1px solid #f0f0f0; margin-top: 10px; padding-top: 10px; }
-        }
-
-        @media (max-width: 600px) {
-            .logo { height: 30px; }
-            .brand-group { gap: 12px; }
-            .company-name { font-size: 0.75rem; }
-            .dashboard-title { font-size: 0.65rem; }
-            header { padding: 10px 15px; }
-        }
-        
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
-        th { background: #faf9f8; font-weight: 600; color: #666; }
+        .heatmap-cell:hover .cell-tip { visibility: visible; opacity: 1; }
     </style>
 </head>
 <body>
@@ -180,16 +51,9 @@
             </div>
         </header>
 
-        <script>
-            function toggleMenu() {
-                const navMenu = document.getElementById('navMenu');
-                navMenu.classList.toggle('active');
-            }
-        </script>
-
         <div class="filters">
             <div class="status-box">
-                <span id="lastUpdate">Last Event: --:--:--</span>
+                <span id="lastUpdate">Last data: --</span>
             </div>
             <div class="filter-group">
                 <label>Machine</label>
@@ -241,6 +105,7 @@
             <button onclick="updateTrends()">Refresh</button>
         </div>
 
+        <div class="status-line" id="trendsStatus"></div>
         <div class="chart-grid">
             <div class="card">
                 <h2 id="oeeTitle">OEE Stability Trend</h2>
@@ -273,18 +138,18 @@
 
         <!-- Annual Summary -->
         <div class="card">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-                <h2 style="margin-bottom: 0;">Annual Performance Summary (Jan-Dec)</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 15px;">
+                <h2 style="margin-bottom: 0;">Annual Performance Summary</h2>
                 <div class="filter-group" style="flex-direction: row; align-items: center; gap: 10px;">
-                    <label style="font-size: 0.8rem; font-weight: 600;">Full Year View:</label>
+                    <label style="font-size: 0.8rem; font-weight: 600;">Year:</label>
                     <select id="annualYearSelect" onchange="updateMonthlyStats()">
                         <option value="2026" selected>2026</option>
                         <option value="2025">2025</option>
                     </select>
                 </div>
             </div>
-            <div style="overflow-x: auto;">
-                <table id="monthlyTable">
+            <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+                <table id="monthlyTable" style="min-width: 520px;">
                     <thead>
                         <tr>
                             <th>Month</th>
@@ -309,20 +174,31 @@
                 <div style="display: flex; align-items: center; gap: 10px; font-size: 0.75rem; color: #666;">
                     <span>Lower OEE</span>
                     <div style="display: flex; gap: 2px;">
-                        <div style="width: 12px; height: 12px; background: #ebedf0; border-radius: 2px;"></div>
-                        <div style="width: 12px; height: 12px; background: #ffcdd2; border-radius: 2px;"></div>
-                        <div style="width: 12px; height: 12px; background: #fff9c4; border-radius: 2px;"></div>
-                        <div style="width: 12px; height: 12px; background: #c8e6c9; border-radius: 2px;"></div>
-                        <div style="width: 12px; height: 12px; background: #4caf50; border-radius: 2px;"></div>
+                        <div style="width: 16px; height: 16px; background: #ebedf0; border-radius: 2px;"></div>
+                        <div style="width: 16px; height: 16px; background: #ffcdd2; border-radius: 2px;"></div>
+                        <div style="width: 16px; height: 16px; background: #fff9c4; border-radius: 2px;"></div>
+                        <div style="width: 16px; height: 16px; background: #c8e6c9; border-radius: 2px;"></div>
+                        <div style="width: 16px; height: 16px; background: #4caf50; border-radius: 2px;"></div>
                     </div>
                     <span>Higher OEE</span>
                 </div>
             </div>
-            <div id="heatmapContainer" style="display: grid; grid-template-columns: repeat(53, 1fr); gap: 4px; overflow-x: auto; padding-bottom: 10px;">
-                <!-- Heatmap cells will be generated here -->
-            </div>
-            <div id="heatmapMonths" style="display: grid; grid-template-columns: repeat(53, 1fr); gap: 4px; margin-top: 5px; font-size: 0.7rem; color: #888;">
-                <!-- Month labels will be generated here -->
+            <div style="display: flex; align-items: flex-start; gap: 6px;">
+                <div class="heatmap-day-labels">
+                    <div></div>
+                    <div>Mon</div>
+                    <div></div>
+                    <div>Wed</div>
+                    <div></div>
+                    <div>Fri</div>
+                    <div></div>
+                </div>
+                <div style="overflow-x: auto; flex: 1; min-width: 0;">
+                    <div id="heatmapContainer" style="display: grid; grid-template-columns: repeat(53, minmax(16px, 1fr)); gap: 2px; padding-bottom: 10px;">
+                    </div>
+                    <div id="heatmapMonths" style="display: grid; grid-template-columns: repeat(53, minmax(16px, 1fr)); gap: 2px; margin-top: 5px; font-size: 0.7rem; color: #888;">
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -332,6 +208,7 @@
         let mttrChart = null;
         let oeeChart = null;
         let lossChart = null;
+        let lastTrendsSuccess = null;
 
         function togglePeriodInputs() {
             const mode = document.getElementById('periodMode').value;
@@ -370,7 +247,7 @@
                 const relevant = statuses.filter(s => s.Source === source || s.Source === baseName);
                 
                 if (relevant.length === 0) {
-                    el.innerText = 'Last Event: No Recent Events';
+                    el.innerText = 'No recent data';
                     el.style.color = '#888';
                     return;
                 }
@@ -380,9 +257,11 @@
 
                 const now = new Date();
                 const lastDate = new Date(now.getTime() - (s.SecondsAgo * 1000));
-                const timeStr = lastDate.toLocaleTimeString();
-                
-                el.innerText = 'Last Event: ' + timeStr;
+                const timeStr = lastDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const minsAgo = Math.floor(s.SecondsAgo / 60);
+                const agoStr = minsAgo < 1 ? 'just now' : minsAgo + 'm ago';
+
+                el.innerText = 'Last data: ' + timeStr + ' (' + agoStr + ')';
                 el.style.color = s.SecondsAgo > 600 ? '#d73a49' : '#888';
             } catch (e) { console.error('Status poll failed', e); }
         }
@@ -443,23 +322,33 @@
                 const [kpiRes, relRes, lossRes] = await Promise.all([
                     fetch(urlKpi), fetch(urlRel), fetch(urlLoss)
                 ]);
+                if (!kpiRes.ok || !relRes.ok || !lossRes.ok) throw new Error('Server error');
 
                 const kpiData = await kpiRes.json();
                 const relData = await relRes.json();
                 const lossData = await lossRes.json();
 
+                lastTrendsSuccess = new Date();
+                clearDataStatus('trendsStatus');
+
                 renderOeeChart(kpiData);
                 renderReliabilityCharts(relData);
                 renderLossChart(lossData);
-                updateMonthlyStats(); 
+                updateMonthlyStats();
 
             } catch (err) {
                 console.error('Error fetching trend data:', err);
+                const lastStr = lastTrendsSuccess
+                    ? 'Last successful: ' + lastTrendsSuccess.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : '';
+                showDataStatus('trendsStatus', 'error',
+                    'Could not load data.' + (lastStr ? ' ' + lastStr + '.' : '') +
+                    ' <a href="#" onclick="updateTrends(); return false;">Retry</a>');
             }
         }
 
         function renderOeeChart(data) {
-            const labels = data.map(d => d.Date.includes('-') ? d.Date.split('-')[2] : d.Date);
+            const labels = data.map(d => d.Date.includes('-') ? new Date(d.Date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : d.Date);
             const ctx = document.getElementById('oeeChart').getContext('2d');
             if (oeeChart) oeeChart.destroy();
             
@@ -476,6 +365,7 @@
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
                     scales: { y: { beginAtZero: true, max: 100 } },
                     plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } }
                 }
@@ -483,7 +373,7 @@
         }
 
         function renderReliabilityCharts(data) {
-            const labels = data.map(d => d.Date.includes('-') ? d.Date.split('-')[2] : d.Date);
+            const labels = data.map(d => d.Date.includes('-') ? new Date(d.Date + 'T00:00:00').toLocaleDateString('en-GB', { day: '2-digit', month: 'short' }) : d.Date);
             
             // MTBF
             const ctxMtbf = document.getElementById('mtbfChart').getContext('2d');
@@ -498,7 +388,7 @@
                         borderColor: '#0056b3', backgroundColor: 'rgba(0, 86, 179, 0.1)', fill: true, tension: 0.3
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true } } }
             });
 
             // MTTR
@@ -514,7 +404,7 @@
                         borderColor: '#a4262c', backgroundColor: 'rgba(164, 38, 44, 0.1)', fill: true, tension: 0.3
                     }]
                 },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true } } }
             });
         }
 
@@ -559,7 +449,7 @@
                     if (row) {
                         tr.innerHTML = `<td>${monthNames[m-1]}</td><td style="font-weight:bold; color:var(--success)">${row.AvgOee.toFixed(1)}%</td><td>${row.AvgAvail.toFixed(1)}%</td><td>${row.AvgPerf.toFixed(1)}%</td><td>${row.AvgQual.toFixed(1)}%</td><td>${row.MtbfMin ? row.MtbfMin.toFixed(0) : 'N/A'}</td><td>${row.TotalQty.toLocaleString()}</td>`;
                     } else {
-                        tr.innerHTML = `<td style="color: #ccc;">${monthNames[m-1]}</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td>`;
+                        tr.innerHTML = `<td style="color: #aaa;">${monthNames[m-1]}</td><td style="color: #aaa;">—</td><td style="color: #aaa;">—</td><td style="color: #aaa;">—</td><td style="color: #aaa;">—</td><td style="color: #aaa;">—</td><td style="color: #aaa;">—</td>`;
                     }
                     tbody.appendChild(tr);
                 }
@@ -590,23 +480,26 @@
                 curr.setDate(curr.getDate() + 1);
             }
 
-            container.style.gridTemplateRows = 'repeat(7, 12px)';
+            container.style.gridTemplateRows = 'repeat(7, 16px)';
             container.style.gridAutoFlow = 'column';
-            container.style.height = '110px';
+            container.style.height = '124px';
 
             daysInYear.forEach(date => {
                 const cell = document.createElement('div');
-                cell.style.width = '12px'; cell.style.height = '12px'; cell.style.borderRadius = '2px';
+                cell.className = 'heatmap-cell';
+                cell.style.height = '16px';
                 if (date) {
                     const dateStr = date.toISOString().split('T')[0];
                     const oee = dataMap[dateStr];
-                    cell.title = `${dateStr}: ${oee ? oee.toFixed(1) + '%' : 'No Data'}`;
+                    const tip = document.createElement('span');
+                    tip.className = 'cell-tip';
+                    tip.innerText = `${dateStr}: ${oee !== undefined ? oee.toFixed(1) + '%' : 'No data'}`;
+                    cell.appendChild(tip);
                     if (oee === undefined) cell.style.background = '#ebedf0';
                     else if (oee < 40) cell.style.background = '#ffcdd2';
                     else if (oee < 60) cell.style.background = '#fff9c4';
                     else if (oee < 80) cell.style.background = '#c8e6c9';
                     else cell.style.background = '#4caf50';
-                    cell.style.cursor = 'pointer';
                     cell.onclick = () => { window.location.href = `oee.html?date=${dateStr}&machine=${document.getElementById('machineSelect').value}`; };
                 } else {
                     cell.style.visibility = 'hidden';

@@ -6,173 +6,32 @@
     <title>Machine OEE - Thantawan Industry Vietnam</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <link rel="stylesheet" href="shared.css">
+    <script src="shared.js"></script>
     <style>
-        :root {
-            --primary: #0056b3; 
-            --bg: #f8f9fa;
-            --card: #ffffff;
-            --text: #333333;
-            --success: #107c10;
-            --error: #a4262c;
-            --warning: #ffb900;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-        }
-        .container { max-width: 1850px; margin: 0 auto; }
-        header { 
-            background: white;
-            padding: 12px 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border-bottom: 4px solid var(--primary);
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .brand-group { display: flex; align-items: center; gap: 20px; flex: 1; }
-        .logo { height: 40px; width: auto; }
-        .brand-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-        .company-name { font-size: 0.9rem; font-weight: 800; color: #333; text-transform: uppercase; line-height: 1; }
-        .dashboard-title { font-weight: 600; color: #888; font-size: 0.75rem; margin: 0; padding: 0; border: none; text-transform: uppercase; letter-spacing: 0.5px; }
-        
         .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px; }
-        .kpi-card { background: var(--card); padding: 12px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border-top: 4px solid var(--primary); position: relative; }
+        .kpi-card { background: var(--card); padding: 12px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); border: 1px solid #e5e5e5; position: relative; }
         .kpi-card:hover { z-index: 10; }
-        .kpi-value { font-size: 1.8rem; font-weight: bold; margin: 5px 0; color: var(--primary); }
+        .kpi-value { font-size: 1.8rem; font-weight: bold; margin: 5px 0; color: #111; }
         .kpi-label { font-size: 0.8rem; color: #666; font-weight: 600; text-transform: uppercase; }
-        
-        .filters { 
-            display: flex; 
-            gap: 20px; 
-            align-items: center; 
-            margin-bottom: 25px; 
-            background: white; 
-            padding: 25px 20px 12px 20px; 
-            border-radius: 8px; 
-            border: 1px solid #eee;
-            width: 100%;
-            box-sizing: border-box;
-            position: relative;
-            flex-wrap: wrap;
-        }
-        @media (max-width: 768px) {
-            .filters { padding-top: 45px; flex-direction: column; align-items: stretch; gap: 15px; }
-        }
-        .filter-group { display: flex; align-items: center; gap: 10px; }
-        label { font-size: 0.8rem; font-weight: 600; color: #666; white-space: nowrap; }
-        select, input, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 10px 20px; }
-        button:hover { background: #004494; }
-
-        .status-box { 
-            position: absolute; 
-            top: 8px; 
-            right: 20px; 
-            font-size: 0.75rem; 
-            color: #666; 
-            font-weight: 600;
-        }
-
         .station-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
-        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
-        
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
-        th { background: #faf9f8; font-weight: 600; color: #666; cursor: pointer; position: relative; }
+        table { font-size: 0.85rem; }
+        th { cursor: pointer; position: relative; }
         th:hover { background: #f0f0f0; }
         th.sort-asc::after { content: ' \25B2'; font-size: 0.7rem; }
         th.sort-desc::after { content: ' \25BC'; font-size: 0.7rem; }
-        
         .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
         .card-header h2 { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
-        
         .btn-export { background: #107c10; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; cursor: pointer; font-weight: 600; }
         .btn-export:hover { background: #0b5a0b; }
-
         .last-seen-text { font-size: 0.75rem; color: #888; font-weight: normal; margin-left: 10px; }
-
-        .nav-link { 
-            text-decoration: none; 
-            color: #666; 
-            font-weight: 600; 
-            font-size: 0.9rem; 
-            transition: color 0.2s;
-        }
-        .nav-link:hover { color: var(--primary); }
-
-        .nav-menu {
-            display: flex;
-            gap: 25px;
-            align-items: center;
-        }
-
-        /* Mobile Menu Styles */
-        .menu-toggle {
-            display: none;
-            flex-direction: column;
-            gap: 4px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 5px;
-            z-index: 10;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .menu-toggle span {
-            display: block;
-            width: 24px;
-            height: 2px;
-            background-color: #333;
-            border-radius: 1px;
-        }
-
         @media (max-width: 1000px) {
             .station-grid { grid-template-columns: 1fr; }
-            header { 
-                flex-wrap: wrap; 
-                padding: 15px 20px; 
-                justify-content: space-between;
-            }
-            .menu-toggle { display: flex; }
-            .nav-menu { 
-                display: none; 
-                flex-direction: column; 
-                width: 100%; 
-                margin-top: 15px; 
-                padding-top: 15px; 
-                border-top: 1px solid #f0f0f0; 
-                gap: 5px;
-                align-items: flex-start;
-            }
-            .nav-menu.active { display: flex; }
-            .nav-link { 
-                padding: 12px 0; 
-                width: 100%; 
-                color: #444;
-            }
-            .status-box { position: static; width: 100%; border-top: 1px solid #f0f0f0; margin-top: 10px; padding-top: 10px; }
         }
-
-        @media (max-width: 600px) {
-            .logo { height: 30px; }
-            .brand-group { gap: 12px; }
-            .company-name { font-size: 0.75rem; }
-            .dashboard-title { font-size: 0.65rem; }
-            header { padding: 10px 15px; }
-        }
-
-        /* Tooltip Styles */
         .tooltip { position: absolute; top: 10px; right: 10px; cursor: pointer; z-index: 5; }
-        .tooltip .info-icon { 
-            width: 18px; height: 18px; background: #f0f0f0; color: #888; 
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+        .tooltip .info-icon {
+            width: 18px; height: 18px; background: #f0f0f0; color: #888;
+            border-radius: 50%; display: flex; align-items: center; justify-content: center;
             font-size: 11px; font-weight: bold; font-family: serif; font-style: italic; border: 1px solid #ddd;
         }
         .tooltip .tooltiptext {
@@ -183,6 +42,13 @@
             text-transform: none; pointer-events: none;
         }
         .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+        .ict-value { font-weight: bold; font-size: 1rem; }
+        .ict-edit-link { font-size: 0.8rem; color: #888; margin-left: 8px; text-decoration: none; }
+        .ict-edit-link:hover { color: #333; }
+        .chart-sm { height: 300px; }
+        .scroll-lg { max-height: 500px; overflow-y: auto; }
+        #timelineTable { font-size: 0.9rem; }
+        #timelineTable tbody tr:nth-child(odd) { background: #fafafa; }
     </style>
 </head>
 <body>
@@ -209,19 +75,12 @@
             </div>
         </header>
 
-        <script>
-            function toggleMenu() {
-                const navMenu = document.getElementById('navMenu');
-                navMenu.classList.toggle('active');
-            }
-        </script>
-
         <div class="filters">
             <div class="status-box">
-                <span id="lastUpdate">Last Event: --:--:--</span>
+                <span id="lastUpdate">Last data: --</span>
             </div>
             <div class="filter-group">
-                <label>Machine Source</label>
+                <label>Machine</label>
                 <select id="machineSelect" onchange="fetchStoredICT()">
                     <option value="CasePacker1_A">Case Packer 1 - Side A</option>
                     <option value="CasePacker1_B">Case Packer 1 - Side B</option>
@@ -234,12 +93,12 @@
                 </select>
             </div>
             <div class="filter-group">
-                <label>Shift Start Date (6:00 AM)</label>
+                <label>Date</label>
                 <input type="date" id="dateFilter" onchange="updateDashboard()">
             </div>
             <div class="filter-group">
-                <label>Active ICT (s/case)</label>
-                <div id="ictDisplay" style="padding: 10px; border: 1px solid #eee; background: #fafafa; border-radius: 4px; font-weight: bold; min-width: 60px; text-align: center; height: 40px; box-sizing: border-box; display: flex; align-items: center; justify-content: center;">--</div>
+                <label>ICT (s/tray)</label>
+                <span id="ictDisplay" class="ict-value">--</span>
             </div>
             <button onclick="updateDashboard()">Refresh</button>
         </div>
@@ -255,8 +114,8 @@
                     </span>
                 </div>
                 <div class="kpi-label">Availability (A)</div>
-                <div class="kpi-value" id="kpiOpAvail">0.0%</div>
-                <div id="kpiTotalLoss" style="font-size: 0.75rem; color: #a4262c; font-weight: 600;">Total Loss : 0m</div>
+                <div class="kpi-value" id="kpiOpAvail">—</div>
+                <div id="kpiTotalLoss" class="kpi-sub-error">Total Loss : 0m</div>
             </div>
             <div class="kpi-card">
                 <div class="tooltip">
@@ -268,8 +127,8 @@
                     </span>
                 </div>
                 <div class="kpi-label">Performance (P)</div>
-                <div class="kpi-value" id="kpiPerformance">0.0%</div>
-                <div style="font-size: 0.75rem; color: #888;">Total Produced: 0 cases</div>
+                <div class="kpi-value" id="kpiPerformance">—</div>
+                <div class="kpi-sub">Total Produced: 0 cases</div>
             </div>
             <div class="kpi-card">
                 <div class="tooltip">
@@ -281,10 +140,10 @@
                     </span>
                 </div>
                 <div class="kpi-label">Quality (Q)</div>
-                <div class="kpi-value" id="kpiQuality">0.0%</div>
-                <div style="font-size: 0.75rem; color: #888;">Rejects: 0 cases</div>
+                <div class="kpi-value" id="kpiQuality">—</div>
+                <div class="kpi-sub">Rejects: 0 cases</div>
             </div>
-            <div class="kpi-card" style="border-top-color: var(--success);">
+            <div class="kpi-card">
                 <div class="tooltip">
                     <div class="info-icon">i</div>
                     <span class="tooltiptext">
@@ -294,8 +153,8 @@
                     </span>
                 </div>
                 <div class="kpi-label" style="color: var(--success);">Overall OEE</div>
-                <div class="kpi-value" id="kpiOee" style="color: var(--success);">0.0%</div>
-                <div style="font-size: 0.75rem; color: #888;">A x P x Q</div>
+                <div class="kpi-value" id="kpiOee" style="color: var(--success);">—</div>
+                <div class="kpi-sub">A x P x Q</div>
             </div>
             <div class="kpi-card">
                 <div class="tooltip">
@@ -307,8 +166,8 @@
                     </span>
                 </div>
                 <div class="kpi-label">Technical Availability</div>
-                <div class="kpi-value" id="kpiTechAvail">0.0%</div>
-                <div style="font-size: 0.75rem; color: #888;">Machine Reliability</div>
+                <div class="kpi-value" id="kpiTechAvail">—</div>
+                <div class="kpi-sub">Machine Reliability</div>
             </div>
             <div class="kpi-card">
                 <div class="tooltip">
@@ -320,8 +179,8 @@
                     </span>
                 </div>
                 <div class="kpi-label">MTBF</div>
-                <div class="kpi-value" id="kpiMtbf">0m</div>
-                <div style="font-size: 0.75rem; color: #888;">Mean Time Between Failures</div>
+                <div class="kpi-value" id="kpiMtbf">—</div>
+                <div class="kpi-sub">Mean Time Between Failures</div>
             </div>
             <div class="kpi-card">
                 <div class="tooltip">
@@ -333,19 +192,20 @@
                     </span>
                 </div>
                 <div class="kpi-label">MTTR</div>
-                <div class="kpi-value" id="kpiMttr">0m</div>
-                <div style="font-size: 0.75rem; color: #888;">Mean Time To Repair</div>
+                <div class="kpi-value" id="kpiMttr">—</div>
+                <div class="kpi-sub">Mean Time To Repair</div>
             </div>
         </div>
+        <div class="status-line" id="oeeDataStatus"></div>
 
         <div class="station-grid">
             <div class="card">
                 <h2>State Distribution (%)</h2>
-                <div style="height: 300px;"><canvas id="stateChart"></canvas></div>
+                <div class="chart-sm"><canvas id="stateChart"></canvas></div>
             </div>
             <div class="card">
                 <h2>Top 5 Losses (Downtime Pareto)</h2>
-                <div style="height: 300px;"><canvas id="paretoChart"></canvas></div>
+                <div class="chart-sm"><canvas id="paretoChart"></canvas></div>
             </div>
         </div>
 
@@ -354,7 +214,7 @@
                 <h2>Timeline Details (6AM - 6AM)</h2>
                 <button class="btn-export" onclick="exportToExcel()">Excel Export</button>
             </div>
-            <div style="max-height: 500px; overflow-y: auto;">
+            <div class="scroll-lg">
                 <table id="timelineTable">
                     <thead>
                         <tr>

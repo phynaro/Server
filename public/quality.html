@@ -4,191 +4,158 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Quality Data Management - Thantawan Industry Vietnam</title>
+    <link rel="stylesheet" href="shared.css">
+    <script src="shared.js"></script>
     <style>
-        :root {
-            --primary: #0056b3; 
-            --bg: #f8f9fa;
-            --card: #ffffff;
-            --text: #333333;
-            --error: #a4262c;
-            --success: #107c10;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-        }
-        .container { max-width: 1850px; margin: 0 auto; }
-        header { 
-            background: white;
-            padding: 12px 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border-bottom: 4px solid var(--primary);
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .brand-group { display: flex; align-items: center; gap: 20px; flex: 1; }
-        .logo { height: 40px; width: auto; }
-        .brand-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-        .company-name { font-size: 0.9rem; font-weight: 800; color: #333; text-transform: uppercase; line-height: 1; }
-        .dashboard-title { font-weight: 600; color: #888; font-size: 0.75rem; margin: 0; padding: 0; border: none; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
-        
-        .filters { 
-            display: flex; 
-            gap: 20px; 
-            align-items: center; 
-            background: white; 
-            padding: 25px 20px 12px 20px; 
-            border-radius: 8px; 
-            border: 1px solid #eee;
-            width: 100%;
-            box-sizing: border-box;
-            position: relative;
-            flex-wrap: wrap;
-        }
-        @media (max-width: 768px) {
-            .filters { padding-top: 45px; flex-direction: column; align-items: stretch; gap: 15px; }
-        }
-        .filter-group { display: flex; align-items: center; gap: 10px; }
-        label { font-size: 0.8rem; font-weight: 600; color: #666; white-space: nowrap; }
-        input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 10px 20px; }
-        button:hover { background: #004494; }
+        .card { margin-bottom: 20px; }
+        table { margin-top: 20px; }
+        th, td { padding: 12px; }
 
-        .status-box { 
-            position: absolute; 
-            top: 8px; 
-            right: 20px; 
-            font-size: 0.75rem; 
-            color: #666; 
-            font-weight: 600;
-        }
-
-        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        button.add-btn:hover { background: #004494; }
-
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
-        th { background: #faf9f8; color: #666; }
-
-        /* Modal Styles */
+        /* Modal */
         .modal {
             display: none;
             position: fixed;
             z-index: 1000;
-            left: 0;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.5);
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.45);
             align-items: center;
             justify-content: center;
         }
         .modal.active { display: flex; }
         .modal-content {
-            background-color: white;
-            padding: 25px;
+            background: #fff;
             border-radius: 8px;
             width: 90%;
-            max-width: 450px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-            position: relative;
+            max-width: 440px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            overflow: hidden;
         }
         .modal-header {
+            padding: 20px 24px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
             border-bottom: 1px solid #eee;
-            padding-bottom: 10px;
         }
-        .modal-header h2 { margin: 0; border: none; font-size: 1.2rem; }
-        .close-modal { font-size: 24px; font-weight: bold; cursor: pointer; color: #888; border: none; background: none; padding: 0 5px; }
-        .modal-form { display: flex; flex-direction: column; gap: 15px; }
-        .modal-form .filter-group { width: 100%; }
-        .modal-form input, .modal-form select { width: 100%; box-sizing: border-box; }
-        
-        .nav-link { 
-            text-decoration: none; 
-            color: #666; 
-            font-weight: 600; 
-            font-size: 0.9rem; 
-            transition: color 0.2s;
+        .modal-header h2 { margin: 0; font-size: 1rem; font-weight: 700; border: none; color: #111; }
+        .close-modal { font-size: 1.2rem; cursor: pointer; color: #aaa; border: none; background: none; padding: 4px 8px; line-height: 1; border-radius: 4px; }
+        .close-modal:hover { color: #333; background: #f5f5f5; }
+        .modal-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 16px; }
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-field { display: flex; flex-direction: column; gap: 5px; }
+        .form-field label { font-size: 0.68rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+        .form-field select,
+        .form-field input[type=datetime-local] {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            width: 100%;
+            box-sizing: border-box;
+            color: #111;
+            background: #fff;
         }
-        .nav-link:hover { color: var(--primary); }
+        .form-field select:focus,
+        .form-field input[type=datetime-local]:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: transparent; }
 
-        .nav-menu {
-            display: flex;
-            gap: 25px;
-            align-items: center;
-        }
-
-        /* Mobile Menu Styles */
-        .menu-toggle {
-            display: none;
-            flex-direction: column;
-            gap: 4px;
-            background: none;
-            border: none;
+        /* Bad count stepper */
+        .count-field { display: flex; flex-direction: column; gap: 6px; }
+        .count-field > label { font-size: 0.68rem; font-weight: 700; color: #888; text-transform: uppercase; letter-spacing: 0.05em; }
+        .count-ctrl { display: flex; height: 56px; }
+        .count-adj {
+            width: 52px;
+            border: 1px solid #ddd;
+            background: #f7f7f7;
+            font-size: 1.6rem;
+            font-weight: 300;
+            line-height: 1;
             cursor: pointer;
-            padding: 5px;
-            z-index: 10;
-            -webkit-tap-highlight-color: transparent;
+            color: #444;
+            flex-shrink: 0;
+            transition: background 0.1s;
         }
-        .menu-toggle span {
+        .count-adj:first-child { border-radius: 4px 0 0 4px; border-right: none; }
+        .count-adj:last-child  { border-radius: 0 4px 4px 0; border-left: none; }
+        .count-adj:hover  { background: #ebebeb; }
+        .count-adj:active { background: #ddd; }
+        #qBadCount {
+            flex: 1;
+            text-align: center;
+            font-size: 2rem;
+            font-weight: 700;
+            border: 1px solid #ddd;
+            border-radius: 0;
+            padding: 0;
+            color: #111;
+            min-width: 0;
+            -moz-appearance: textfield;
+        }
+        #qBadCount::-webkit-inner-spin-button,
+        #qBadCount::-webkit-outer-spin-button { -webkit-appearance: none; }
+        #qBadCount:focus { outline: 2px solid var(--primary); outline-offset: -1px; }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            gap: 8px;
+            padding: 14px 24px 20px;
+            border-top: 1px solid #eee;
+        }
+        .btn-cancel { background: none; border: none; color: #666; cursor: pointer; font-size: 0.9rem; padding: 8px 14px; border-radius: 4px; }
+        .btn-cancel:hover { background: #f5f5f5; color: #333; }
+
+.save-confirm { font-size: 0.85rem; color: var(--success); min-height: 1.4em; opacity: 0; transition: opacity 0.4s; }
+        .save-confirm.visible { opacity: 1; }
+        .delete-confirm-link { color: var(--error); font-weight: 600; font-size: 0.8rem; }
+        .delete-cancel-link { font-size: 0.8rem; color: #888; }
+
+        .card-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        .card-header h2 { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+        /* Inspection image cards */
+        .img-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 12px;
+            margin-top: 4px;
+        }
+        .img-card {
+            border: 1px solid #e5e5e5;
+            border-radius: 6px;
+            overflow: hidden;
+            background: #fafafa;
+            transition: box-shadow 0.15s;
+        }
+        .img-card:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+        .img-card a { display: block; }
+        .img-card img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
             display: block;
-            width: 24px;
-            height: 2px;
-            background-color: #333;
-            border-radius: 1px;
+            background: #eee;
         }
-
-        @media (max-width: 1000px) {
-            header { 
-                flex-wrap: wrap; 
-                padding: 15px 20px; 
-                justify-content: space-between;
-            }
-            .menu-toggle { display: flex; }
-            .nav-menu { 
-                display: none; 
-                flex-direction: column; 
-                width: 100%; 
-                margin-top: 15px; 
-                padding-top: 15px; 
-                border-top: 1px solid #f0f0f0; 
-                gap: 5px;
-                align-items: flex-start;
-            }
-            .nav-menu.active { display: flex; }
-            .nav-link { 
-                padding: 12px 0; 
-                width: 100%; 
-                color: #444;
-            }
-            .status-box { position: static; width: 100%; border-top: 1px solid #f0f0f0; margin-top: 10px; padding-top: 10px; }
+        .img-card-info {
+            padding: 8px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 3px;
         }
-
-        @media (max-width: 600px) {
-            .logo { height: 30px; }
-            .brand-group { gap: 12px; }
-            .company-name { font-size: 0.75rem; }
-            .dashboard-title { font-size: 0.65rem; }
-            header { padding: 10px 15px; }
+        .img-card-machine { font-size: 0.82rem; font-weight: 600; color: #111; }
+        .img-card-time { font-size: 0.75rem; color: #888; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            align-self: flex-start;
+            margin-top: 2px;
         }
-
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding: 10px; }
-        .pagination button { background: #eee; color: #333; padding: 5px 15px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
-        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .pagination span { font-weight: 600; font-size: 0.9rem; }
+        .badge-reject { background: #fde8e8; color: var(--error); }
+        .badge-ok     { background: #e6f4ea; color: var(--success); }
     </style>
 </head>
 <body>
@@ -215,20 +182,10 @@
             </div>
         </header>
 
-        <script>
-            function toggleMenu() {
-                const navMenu = document.getElementById('navMenu');
-                navMenu.classList.toggle('active');
-            }
-        </script>
-
         <div class="filters" style="margin-bottom: 25px;">
-            <div class="status-box">
-                <span id="lastUpdate">Last Event: --:--:--</span>
-            </div>
             <div class="filter-group">
                 <label>Machine</label>
-                <select id="filterMachine" onchange="renderTable()">
+                <select id="filterMachine" onchange="renderTable(); loadFaultImages()">
                     <option value="ALL">All Machines</option>
                     <option value="CasePacker1_A">Case Packer 1 - Side A</option>
                     <option value="CasePacker1_B">Case Packer 1 - Side B</option>
@@ -242,7 +199,7 @@
             </div>
             <div class="filter-group">
                 <label>Date</label>
-                <input type="date" id="filterDate" onchange="renderTable()">
+                <input type="date" id="filterDate" onchange="renderTable(); loadFaultImages()">
             </div>
             <button onclick="renderTable()">Refresh</button>
             <div style="margin-left: auto;">
@@ -254,43 +211,62 @@
         <div id="addModal" class="modal">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h2>Record Bad Count</h2>
-                    <button class="close-modal" onclick="closeModal()">&times;</button>
+                    <h2>Add Quality Record</h2>
+                    <button class="close-modal" onclick="closeModal()" aria-label="Close">&times;</button>
                 </div>
-                <form id="qualityForm" class="modal-form">
-                    <div class="filter-group">
-                        <label>Date/Time</label>
-                        <input type="datetime-local" id="qTimestamp" required>
+                <form id="qualityForm">
+                    <div class="modal-body">
+                        <div class="form-row">
+                            <div class="form-field">
+                                <label for="qMachine">Machine</label>
+                                <select id="qMachine" required onchange="updateProductTypes()">
+                                    <option value="">Select…</option>
+                                    <option value="CasePacker1_A">Case Packer 1 – A</option>
+                                    <option value="CasePacker1_B">Case Packer 1 – B</option>
+                                    <option value="CasePacker2_A">Case Packer 2 – A</option>
+                                    <option value="CasePacker2_B">Case Packer 2 – B</option>
+                                    <option value="CasePacker3_A">Case Packer 3 – A</option>
+                                    <option value="CasePacker3_B">Case Packer 3 – B</option>
+                                    <option value="CaseForming">Case Forming</option>
+                                    <option value="Palletizer">Palletizer</option>
+                                </select>
+                            </div>
+                            <div class="form-field">
+                                <label for="qType">Product Type</label>
+                                <select id="qType" required></select>
+                            </div>
+                        </div>
+                        <div class="form-field">
+                            <label for="qTimestamp">Date / Time</label>
+                            <input type="datetime-local" id="qTimestamp" required>
+                        </div>
+                        <div class="count-field">
+                            <label for="qBadCount">Bad Count (Cases)</label>
+                            <div class="count-ctrl">
+                                <button type="button" class="count-adj" onclick="adjustCount(-1)">−</button>
+                                <input type="number" id="qBadCount" min="0" value="0" required>
+                                <button type="button" class="count-adj" onclick="adjustCount(1)">+</button>
+                            </div>
+                        </div>
+                        <div class="form-field">
+                            <label>Photo (optional)</label>
+                            <input type="file" id="qImage" accept="image/*" onchange="previewQImage(this)">
+                            <img id="qImagePreview" style="display:none; max-height:120px; margin-top:8px; border-radius:4px; object-fit:contain;">
+                        </div>
                     </div>
-                    <div class="filter-group">
-                        <label>Machine</label>
-                        <select id="qMachine" required onchange="updateProductTypes()">
-                            <option value="">Select Machine...</option>
-                            <option value="CasePacker1_A">Case Packer 1 - Side A</option>
-                            <option value="CasePacker1_B">Case Packer 1 - Side B</option>
-                            <option value="CasePacker2_A">Case Packer 2 - Side A</option>
-                            <option value="CasePacker2_B">Case Packer 2 - Side B</option>
-                            <option value="CasePacker3_A">Case Packer 3 - Side A</option>
-                            <option value="CasePacker3_B">Case Packer 3 - Side B</option>
-                            <option value="CaseForming">Case Forming</option>
-                            <option value="Palletizer">Palletizer</option>
-                        </select>
+                    <div class="modal-actions">
+                        <button type="button" class="btn-cancel" onclick="closeModal()">Cancel</button>
+                        <button type="submit" id="submitBtn">Save Record</button>
                     </div>
-                    <div class="filter-group">
-                        <label>Product Type</label>
-                        <select id="qType" required></select>
-                    </div>
-                    <div class="filter-group">
-                        <label>Bad Count (Cases)</label>
-                        <input type="number" id="qBadCount" min="0" required value="0">
-                    </div>
-                    <button type="submit" id="submitBtn">Save Record</button>
                 </form>
             </div>
         </div>
 
+        <div class="save-confirm" id="saveConfirm"></div>
+
         <div class="card">
-            <h2>Quality Data Logs</h2>
+            <h2>Manual Quality Logs</h2>
+            <div class="status-line" id="qualityStatus"></div>
             <table id="qualityTable">
                 <thead>
                     <tr>
@@ -298,15 +274,25 @@
                         <th>Machine</th>
                         <th>Type</th>
                         <th>Bad Count</th>
+                        <th>Photo</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
-                <tbody></tbody>
+                <tbody><tr><td colspan="6" class="status-line">Loading…</td></tr></tbody>
             </table>
-            <div class="pagination">
-                <button id="prevPage" onclick="changePage(-1)">Previous</button>
-                <span id="pageInfo">Page 1</span>
-                <button id="nextPage" onclick="changePage(1)">Next</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <h2>Machine Inspection Images</h2>
+                <select id="faultFilter" onchange="loadFaultImages()" style="font-size:0.85rem; padding:4px 8px;">
+                    <option value="1">NG only</option>
+                    <option value="">All</option>
+                </select>
+            </div>
+            <div class="status-line" id="faultStatus"></div>
+            <div id="faultBody" class="img-grid">
+                <div class="status-line">Loading…</div>
             </div>
         </div>
     </div>
@@ -331,8 +317,7 @@
         };
 
         let allQualityData = [];
-        let currentPage = 1;
-        const recordsPerPage = 20;
+        let lastQualitySuccess = null;
 
         // Modal Logic
         function openModal() {
@@ -340,10 +325,31 @@
             const now = new Date();
             now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
             document.getElementById('qTimestamp').value = now.toISOString().slice(0, 16);
+            document.getElementById('qBadCount').value = 0;
         }
 
         function closeModal() {
             document.getElementById('addModal').classList.remove('active');
+            document.getElementById('qImage').value = '';
+            const preview = document.getElementById('qImagePreview');
+            preview.style.display = 'none';
+            preview.src = '';
+        }
+
+        function previewQImage(input) {
+            const preview = document.getElementById('qImagePreview');
+            if (input.files && input.files[0]) {
+                preview.src = URL.createObjectURL(input.files[0]);
+                preview.style.display = 'block';
+            } else {
+                preview.style.display = 'none';
+                preview.src = '';
+            }
+        }
+
+        function adjustCount(delta) {
+            const input = document.getElementById('qBadCount');
+            input.value = Math.max(0, (parseInt(input.value) || 0) + delta);
         }
 
         // Close modal when clicking outside content
@@ -361,10 +367,19 @@
                 machineTypes[machine].forEach(t => {
                     const opt = document.createElement('option');
                     opt.value = t;
-                    opt.textContent = typeLabels[t] || ('Type ' + t);
+                    opt.textContent = typeLabels[t] || t;
                     typeSelect.appendChild(opt);
                 });
             }
+        }
+
+        // Returns [shiftStart, shiftEnd] as 'YYYY-MM-DD HH:MM:SS' strings for a given date
+        function shiftWindow(date) {
+            const start = date + ' 06:00:00';
+            const d = new Date(date + 'T00:00:00');
+            d.setDate(d.getDate() + 1);
+            const end = d.toISOString().slice(0, 10) + ' 06:00:00';
+            return [start, end];
         }
 
         // Initialize form
@@ -372,128 +387,189 @@
         document.getElementById('filterDate').value = today;
         updateProductTypes();
 
-        // Load Data
         async function loadData() {
             try {
                 const res = await fetch('/api/quality');
+                if (!res.ok) throw new Error('Server error ' + res.status);
                 allQualityData = await res.json();
+                lastQualitySuccess = new Date();
+                clearDataStatus('qualityStatus');
                 renderTable();
             } catch (err) {
                 console.error('Error loading quality data:', err);
+                const lastStr = lastQualitySuccess
+                    ? 'Last successful: ' + lastQualitySuccess.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : '';
+                showDataStatus('qualityStatus', 'error',
+                    'Could not load data.' + (lastStr ? ' ' + lastStr + '.' : '') +
+                    ' <a href="#" onclick="loadData(); return false;">Retry</a>');
             }
         }
 
-        async function updateMachineStatus() {
-            const source = document.getElementById('filterMachine').value;
-            const el = document.getElementById('lastUpdate');
-            if (!source || !el) return;
-
-            try {
-                const res = await fetch('/api/status');
-                const statuses = await res.json();
-                
-                let relevant;
-                if (source === 'ALL') {
-                    relevant = statuses;
-                } else {
-                    const baseName = source.split('_')[0]; 
-                    relevant = statuses.filter(s => s.Source === source || s.Source === baseName);
-                }
-                
-                if (relevant.length === 0) {
-                    el.innerText = 'Last Event: No Recent Events';
-                    el.style.color = '#888';
-                    return;
-                }
-
-                relevant.sort((a, b) => a.SecondsAgo - b.SecondsAgo);
-                const s = relevant[0];
-
-                const now = new Date();
-                const lastDate = new Date(now.getTime() - (s.SecondsAgo * 1000));
-                const timeStr = lastDate.toLocaleTimeString();
-                
-                el.innerText = 'Last Event: ' + timeStr;
-                el.style.color = s.SecondsAgo > 600 ? '#d73a49' : '#888';
-            } catch (e) { console.error('Status poll failed', e); }
-        }
-
         function renderTable() {
-            updateMachineStatus();
             const tbody = document.querySelector('#qualityTable tbody');
             tbody.innerHTML = '';
 
             const machineFilter = document.getElementById('filterMachine').value;
             const dateFilter = document.getElementById('filterDate').value;
 
+            const [shiftStart, shiftEnd] = dateFilter ? shiftWindow(dateFilter) : [null, null];
             const filteredData = allQualityData.filter(row => {
                 const matchMachine = machineFilter === 'ALL' || row.Machine === machineFilter;
-                const matchDate = !dateFilter || row.LocalTimestamp.startsWith(dateFilter);
+                const ts = row.LocalTimestamp.replace('T', ' ');
+                const matchDate = !dateFilter || (ts >= shiftStart && ts < shiftEnd);
                 return matchMachine && matchDate;
             });
 
-            const startIndex = (currentPage - 1) * recordsPerPage;
-            const endIndex = startIndex + recordsPerPage;
-            const paginatedData = filteredData.slice(startIndex, endIndex);
+            if (filteredData.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" class="status-line">No data for this period.</td></tr>';
+                return;
+            }
 
-            paginatedData.forEach(row => {
+            filteredData.forEach(row => {
                 const tr = document.createElement('tr');
-                const label = typeLabels[row.ProductType] || ('Type ' + row.ProductType);
+                const label = typeLabels[row.ProductType] || row.ProductType;
+                const thumbHtml = row.ImagePath
+                    ? `<a href="${row.ImagePath}" target="_blank"><img src="${row.ImagePath}" style="height:40px;border-radius:3px;cursor:pointer;"></a>`
+                    : '—';
                 tr.innerHTML = `
                     <td>${row.LocalTimestamp.replace('T', ' ')}</td>
                     <td>${row.Machine}</td>
                     <td>${label}</td>
                     <td>${row.BadCount}</td>
+                    <td>${thumbHtml}</td>
                     <td>
-                        <button class="delete" onclick="deleteRecord(${row.id})">Delete</button>
+                        <button class="delete" onclick="confirmDeleteRow(${row.id}, this)">Delete</button>
                     </td>
                 `;
                 tbody.appendChild(tr);
             });
-
-            // Update Pagination Controls
-            const totalPages = Math.ceil(filteredData.length / recordsPerPage) || 1;
-            document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${totalPages}`;
-            document.getElementById('prevPage').disabled = currentPage === 1;
-            document.getElementById('nextPage').disabled = currentPage >= totalPages;
-        }
-
-        function changePage(delta) {
-            currentPage += delta;
-            renderTable();
         }
 
         // Handle Submit
         document.getElementById('qualityForm').onsubmit = async (e) => {
             e.preventDefault();
-            const payload = {
-                LocalTimestamp: document.getElementById('qTimestamp').value,
-                Machine: document.getElementById('qMachine').value,
-                ProductType: document.getElementById('qType').value,
-                BadCount: parseInt(document.getElementById('qBadCount').value)
-            };
+            const formData = new FormData();
+            formData.append('LocalTimestamp', document.getElementById('qTimestamp').value);
+            formData.append('Machine', document.getElementById('qMachine').value);
+            formData.append('ProductType', document.getElementById('qType').value);
+            formData.append('BadCount', document.getElementById('qBadCount').value);
+            const imageFile = document.getElementById('qImage').files[0];
+            if (imageFile) formData.append('image', imageFile);
 
             await fetch('/api/quality', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: formData
             });
 
-            document.getElementById('qBadCount').value = 0;
-            currentPage = 1; 
+            const timeStr = (formData.get('LocalTimestamp') || '').split('T')[1] || '';
+            const el = document.getElementById('saveConfirm');
+            el.innerText = `Saved — ${formData.get('Machine')}, ${formData.get('BadCount')} bad, ${timeStr}`;
+            el.classList.add('visible');
+            clearTimeout(el._timer);
+            el._timer = setTimeout(() => el.classList.remove('visible'), 4000);
+
             closeModal();
             loadData();
         };
 
-        async function deleteRecord(id) {
-            if (confirm('Delete this record?')) {
-                await fetch(`/api/quality/${id}`, { method: 'DELETE' });
-                loadData();
-            }
+        function confirmDeleteRow(id, btn) {
+            const td = btn.parentElement;
+            td.dataset.original = td.innerHTML;
+            td.innerHTML = `<a href="#" class="delete-confirm-link" onclick="doDelete(${id}); return false;">Confirm delete</a> · <a href="#" class="delete-cancel-link" onclick="cancelDeleteRow(this); return false;">Cancel</a>`;
+        }
+
+        function cancelDeleteRow(link) {
+            const td = link.parentElement;
+            td.innerHTML = td.dataset.original;
+        }
+
+        async function doDelete(id) {
+            await fetch(`/api/quality/${id}`, { method: 'DELETE' });
+            loadData();
         }
 
         loadData();
-        setInterval(updateMachineStatus, 10000);
+        loadFaultImages();
+
+        const machineToTypes = {
+            'CasePacker1_A': ['1', '901'],
+            'CasePacker1_B': ['2', '902'],
+            'CasePacker2_A': ['3', '903'],
+            'CasePacker2_B': ['4', '904'],
+            'CasePacker3_A': ['5', '905'],
+            'CasePacker3_B': ['6', '906']
+        };
+
+        const rejectTypeToMachine = {
+            '1': 'Case Packer 1 - Side A', '901': 'Case Packer 1 - Side A',
+            '2': 'Case Packer 1 - Side B', '902': 'Case Packer 1 - Side B',
+            '3': 'Case Packer 2 - Side A', '903': 'Case Packer 2 - Side A',
+            '4': 'Case Packer 2 - Side B', '904': 'Case Packer 2 - Side B',
+            '5': 'Case Packer 3 - Side A', '905': 'Case Packer 3 - Side A',
+            '6': 'Case Packer 3 - Side B', '906': 'Case Packer 3 - Side B'
+        };
+
+        async function loadFaultImages() {
+            const date = document.getElementById('filterDate').value;
+            const isReject = document.getElementById('faultFilter').value;
+            const tbody = document.getElementById('faultBody');
+            tbody.innerHTML = '<div class="status-line">Loading…</div>';
+
+            try {
+                const params = new URLSearchParams();
+                if (date) params.set('date', date);
+                if (isReject !== '') params.set('isReject', isReject);
+                const res = await fetch('/api/machine-quality-events?' + params.toString());
+                if (!res.ok) throw new Error('Server error ' + res.status);
+                let rows = await res.json();
+                const machineFilter = document.getElementById('filterMachine').value;
+                if (machineFilter !== 'ALL') {
+                    const allowed = machineToTypes[machineFilter] || [];
+                    rows = rows.filter(r => allowed.includes(r.TypeOfProduct));
+                }
+                clearDataStatus('faultStatus');
+                renderFaultImages(rows);
+            } catch (err) {
+                showDataStatus('faultStatus', 'error',
+                    'Could not load fault images. <a href="#" onclick="loadFaultImages(); return false;">Retry</a>');
+                tbody.innerHTML = '';
+            }
+        }
+
+        function renderFaultImages(rows) {
+            const container = document.getElementById('faultBody');
+            container.innerHTML = '';
+
+            if (rows.length === 0) {
+                container.innerHTML = '<div class="status-line">No machine inspection images for this date.</div>';
+                return;
+            }
+
+            rows.forEach(row => {
+                const machine = rejectTypeToMachine[row.TypeOfProduct] || '—';
+                const badge = row.IsReject
+                    ? '<span class="badge badge-reject">NG</span>'
+                    : '<span class="badge badge-ok">OK</span>';
+                const imgUrl = `https://thantawan.trazor.cloud${row.ImagePath}`;
+                const localDt = new Date(row.LocalTimestamp.replace(' ', 'T') + 'Z');
+                const dtStr = localDt.toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' }).replace('T', ' ');
+
+                const card = document.createElement('div');
+                card.className = 'img-card';
+                card.innerHTML = `
+                    <a href="${imgUrl}" target="_blank">
+                        <img src="${imgUrl}" alt="inspection image" loading="lazy">
+                    </a>
+                    <div class="img-card-info">
+                        <div class="img-card-machine">${machine}</div>
+                        <div class="img-card-time">${dtStr}</div>
+                        ${badge}
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
     </script>
 </body>
 </html>

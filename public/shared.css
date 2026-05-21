@@ -1,0 +1,179 @@
+/* ============================================================
+   Shared stylesheet — Thantawan Industry Vietnam Dashboard
+   All pages link this file. Page-specific overrides go in
+   each page's own <style> block, after this link.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* Variables */
+:root {
+    --primary: #0056b3;
+    --bg: #f8f9fa;
+    --card: #ffffff;
+    --text: #333333;
+    --success: #107c10;
+    --error: #a4262c;
+    --warning: #ffb900;
+}
+
+/* Base */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: var(--bg);
+    color: var(--text);
+    margin: 0;
+    padding: 20px;
+}
+
+.container { max-width: 1850px; margin: 0 auto; }
+
+/* Header & Branding */
+header {
+    background: white;
+    padding: 12px 24px;
+    border-radius: 8px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+    border-bottom: 1px solid #ebebeb;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.brand-group { display: flex; align-items: center; gap: 20px; flex: 1; }
+.logo { height: 40px; width: auto; }
+.brand-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.company-name { font-size: 0.9rem; font-weight: 800; color: #333; text-transform: uppercase; line-height: 1; }
+.dashboard-title { font-weight: 600; color: #888; font-size: 0.75rem; margin: 0; padding: 0; border: none; text-transform: uppercase; letter-spacing: 0.5px; }
+
+/* Navigation */
+.nav-menu {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+.nav-link {
+    text-decoration: none;
+    color: #666;
+    font-weight: 500;
+    font-size: 0.88rem;
+    padding: 6px 12px;
+    border-radius: 6px;
+    white-space: nowrap;
+    transition: background 0.15s, color 0.15s;
+}
+.nav-link:hover { color: #111; }
+.nav-link.active { color: #111; font-weight: 700; }
+
+.menu-toggle {
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 6px;
+    z-index: 10;
+    -webkit-tap-highlight-color: rgba(0,0,0,0);
+    outline: none;
+}
+.menu-toggle:focus { outline: none; }
+.menu-toggle:active { background: none; }
+.menu-toggle span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background-color: #444;
+    border-radius: 1px;
+    transition: transform 0.22s ease, opacity 0.22s ease;
+    transform-origin: center;
+}
+.menu-toggle.is-open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.menu-toggle.is-open span:nth-child(2) { opacity: 0; transform: scaleX(0); }
+.menu-toggle.is-open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* Filter Bar */
+.filters {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    margin-bottom: 8px;
+    padding: 2px 4px;
+    width: 100%;
+    box-sizing: border-box;
+    flex-wrap: wrap;
+}
+
+.filter-group { display: flex; align-items: center; gap: 10px; }
+
+.status-box {
+    font-size: 0.75rem;
+    color: #666;
+    font-weight: 600;
+    white-space: nowrap;
+}
+.status-box + * { margin-left: auto; }
+
+/* Form Elements */
+label { font-size: 0.8rem; font-weight: 600; color: #666; white-space: nowrap; }
+input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; font-family: inherit; }
+button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 10px 20px; }
+button:hover { opacity: 0.88; }
+
+/* Cards */
+.card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
+th { background: #faf9f8; font-weight: 600; color: #666; min-height: 44px; }
+
+/* KPI sub-labels */
+.kpi-sub { font-size: 0.75rem; color: #888; }
+.kpi-sub-error { font-size: 0.75rem; color: var(--error); font-weight: 600; }
+
+/* Data loading / error / empty states */
+.status-line { font-size: 0.8rem; color: #999; padding: 4px 0; }
+.status-line.is-error { color: var(--error); }
+.status-line a { color: inherit; text-decoration: underline; cursor: pointer; margin-left: 6px; }
+td.status-line { text-align: center; padding: 20px; border-bottom: none; }
+
+/* Responsive — Filter bar */
+@media (max-width: 768px) {
+    .filters { padding-top: 6px; flex-direction: column; align-items: stretch; gap: 10px; }
+    .filter-group { flex-direction: column; align-items: stretch; gap: 4px; }
+    .filter-group input, .filter-group select { width: 100%; box-sizing: border-box; }
+}
+
+/* Responsive — Navigation */
+@media (max-width: 1000px) {
+    header { flex-wrap: wrap; padding: 15px 20px; justify-content: space-between; }
+    .menu-toggle { display: flex; }
+    .nav-menu {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid #f0f0f0;
+        gap: 2px;
+        align-items: stretch;
+    }
+    .nav-menu.active { display: flex; }
+    .nav-link { padding: 10px 12px; color: #444; }
+    .status-box { order: 999; width: 100%; margin-top: 4px; }
+    .status-box + * { margin-left: 0; }
+}
+
+/* Responsive — Small screens */
+@media (max-width: 600px) {
+    .logo { height: 30px; }
+    .brand-group { gap: 12px; }
+    .company-name { font-size: 0.75rem; }
+    .dashboard-title { font-size: 0.65rem; }
+    header { padding: 10px 15px; }
+}

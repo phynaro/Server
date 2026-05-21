@@ -3,147 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Settings - Ideal Cycle Time</title>
+    <title>Settings - System Settings & Configurations</title>
+    <link rel="stylesheet" href="shared.css">
+    <script src="shared.js"></script>
     <style>
-        :root {
-            --primary: #0056b3; 
-            --bg: #f8f9fa;
-            --card: #ffffff;
-            --text: #333333;
-            --success: #107c10;
+        .card { padding: 0; overflow: hidden; }
+        .settings-layout { display: flex; min-height: 420px; }
+        .tab-nav {
+            width: 176px;
+            flex-shrink: 0;
+            border-right: 1px solid #e5e5e5;
+            padding: 12px 0;
         }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg);
-            color: var(--text);
-            margin: 0;
-            padding: 20px;
-        }
-        .container { max-width: 1850px; margin: 0 auto; }
-        header { 
-            background: white;
-            padding: 12px 25px;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-            border-bottom: 4px solid var(--primary);
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .brand-group { display: flex; align-items: center; gap: 20px; flex: 1; }
-        .logo { height: 40px; width: auto; }
-        .brand-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
-        .company-name { font-size: 0.9rem; font-weight: 800; color: #333; text-transform: uppercase; line-height: 1; }
-        .dashboard-title { font-weight: 600; color: #888; font-size: 0.75rem; margin: 0; padding: 0; border: none; text-transform: uppercase; letter-spacing: 0.5px; }
-        
-        .filters { 
-            display: flex; 
-            gap: 20px; 
-            align-items: center; 
-            margin-bottom: 25px; 
-            background: white; 
-            padding: 25px 20px 12px 20px; 
-            border-radius: 8px; 
-            border: 1px solid #eee;
-            width: 100%;
-            box-sizing: border-box;
-            position: relative;
-            flex-wrap: wrap;
-        }
-        @media (max-width: 768px) {
-            .filters { padding-top: 45px; flex-direction: column; align-items: stretch; gap: 15px; }
-        }
-        .status-box { 
-            position: absolute; 
-            top: 8px; 
-            right: 20px; 
-            font-size: 0.75rem; 
-            color: #666; 
-            font-weight: 600;
-        }
-
-        .card { background: var(--card); padding: 25px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
-        
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
-        th { background: #faf9f8; font-weight: 600; color: #666; }
-        
-        input { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; width: 80px; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 10px 20px; border-radius: 4px; font-size: 0.9rem; }
-        button:hover { background: #004494; }
-
-        .nav-link { 
-            text-decoration: none; 
-            color: #666; 
-            font-weight: 600; 
-            font-size: 0.9rem; 
-            transition: color 0.2s;
-        }
-        .nav-link:hover { color: var(--primary); }
-
-        .nav-menu {
-            display: flex;
-            gap: 25px;
-            align-items: center;
-        }
-
-        /* Mobile Menu Styles */
-        .menu-toggle {
-            display: none;
-            flex-direction: column;
-            gap: 4px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            padding: 5px;
-            z-index: 10;
-            -webkit-tap-highlight-color: transparent;
-        }
-        .menu-toggle span {
+        .tab-btn {
             display: block;
-            width: 24px;
-            height: 2px;
-            background-color: #333;
-            border-radius: 1px;
+            width: 100%;
+            text-align: left;
+            padding: 10px 16px;
+            border: none;
+            border-left: 3px solid transparent;
+            background: none;
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: #555;
+            transition: background 0.1s;
         }
-
-        @media (max-width: 1000px) {
-            header { 
-                flex-wrap: wrap; 
-                padding: 15px 20px; 
-                justify-content: space-between;
-            }
-            .menu-toggle { display: flex; }
-            .nav-menu { 
-                display: none; 
-                flex-direction: column; 
-                width: 100%; 
-                margin-top: 15px; 
-                padding-top: 15px; 
-                border-top: 1px solid #f0f0f0; 
-                gap: 5px;
-                align-items: flex-start;
-            }
-            .nav-menu.active { display: flex; }
-            .nav-link { 
-                padding: 12px 0; 
-                width: 100%; 
-                color: #444;
-            }
-            .status-box { position: static; width: 100%; border-top: 1px solid #f0f0f0; margin-top: 10px; padding-top: 10px; }
-        }
-
-        @media (max-width: 600px) {
-            .logo { height: 30px; }
-            .brand-group { gap: 12px; }
-            .company-name { font-size: 0.75rem; }
-            .dashboard-title { font-size: 0.65rem; }
-            header { padding: 10px 15px; }
-        }
-        
+        .tab-btn.active { color: #111; font-weight: 600; border-left-color: var(--primary); background: #f0f5ff; }
+        .tab-btn:hover:not(.active) { background: #f7f7f7; color: #333; }
+        .tab-content { flex: 1; padding: 24px 28px; min-width: 0; }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+        table { margin-bottom: 0; }
+        th { padding: 6px 12px; }
+        td { padding: 2px 12px; }
+        .inline-err { min-height: 0; }
+        input[type=number] { width: 80px; }
+        input.invalid { border-color: var(--error); outline-color: var(--error); }
+        .inline-err { font-size: 0.75rem; color: var(--error); display: block; margin-top: 3px; min-height: 1em; }
+        .row-dirty > td:first-child { border-left: 3px solid #ccc; padding-left: 9px; }
+        .save-all-footer { display: flex; align-items: center; gap: 16px; margin-top: 16px; margin-bottom: 16px; }
         .status-msg { margin-top: 10px; font-size: 0.9rem; font-weight: bold; }
+        details { margin-bottom: 20px; font-size: 0.85rem; color: #555; }
+        details summary { cursor: pointer; font-weight: 600; color: #333; padding: 4px 0; }
+        details p { margin: 8px 0 0; line-height: 1.6; }
+
+        @media (max-width: 700px) {
+            /* Tab nav becomes a horizontal strip across the top */
+            .settings-layout { flex-direction: column; min-height: unset; }
+            .tab-nav {
+                width: 100%;
+                border-right: none;
+                border-bottom: 1px solid #e5e5e5;
+                padding: 0;
+                display: flex;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+            .tab-btn {
+                border-left: none;
+                border-bottom: 3px solid transparent;
+                white-space: nowrap;
+                padding: 10px 18px;
+            }
+            .tab-btn.active {
+                border-left-color: transparent;
+                border-bottom-color: var(--primary);
+                background: none;
+            }
+            .tab-content { padding: 16px 14px; }
+
+            /* Stacked table rows — machine name on top, ICT + Save on same line below */
+            #settingsTable thead { display: none; }
+            #settingsTable tbody tr {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px;
+                padding: 10px 0;
+                border-bottom: 1px solid #eee;
+            }
+            #settingsTable td { display: block; border: none; padding: 0; }
+            #settingsTable td:first-child { width: 100%; font-weight: 500; font-size: 0.9rem; }
+            #settingsTable td:nth-child(2) { flex: 1; }
+            #settingsTable td:nth-child(2) input[type=number] { width: 100%; box-sizing: border-box; }
+            #settingsTable td:last-child { flex-shrink: 0; }
+            .row-dirty > td:first-child { border-left: 3px solid #ccc; padding-left: 6px; }
+            .save-all-footer button { width: 100%; }
+        }
     </style>
 </head>
 <body>
@@ -153,7 +99,7 @@
                 <img src="https://kinetix.co.th/wp-content/uploads/2023/02/cropped-Kinetix_Web_Logo2-1.png" alt="Kinetix Logo" class="logo">
                 <div class="brand-text">
                     <div class="company-name">Thantawan Industry Vietnam</div>
-                    <div class="dashboard-title">Cycle Time Management</div>
+                    <div class="dashboard-title">System Settings & Configurations</div>
                 </div>
             </div>
             <button class="menu-toggle" onclick="toggleMenu()" aria-label="Toggle navigation">
@@ -170,39 +116,48 @@
             </div>
         </header>
 
-        <script>
-            function toggleMenu() {
-                const navMenu = document.getElementById('navMenu');
-                navMenu.classList.toggle('active');
-            }
-        </script>
-
-        <div class="filters">
-            <div class="status-box">
-                <span id="lastUpdate">Last Event: --:--:--</span>
-            </div>
-            <div style="font-size: 0.9rem; font-weight: 600; color: #666;">System Settings & Configurations</div>
-        </div>
-
         <div class="card">
-            <h2>Ideal Cycle Times (Seconds per Case)</h2>
-            <table id="settingsTable">
-                <thead>
-                    <tr>
-                        <th>Machine Source</th>
-                        <th>Ideal Cycle Time (s)</th>
-                        <th>Action</th>
-                    </tr>
-                </thead>
-                <tbody id="settingsBody">
-                    <!-- Rows will be populated by JS -->
-                </tbody>
-            </table>
-            <div id="statusMsg" class="status-msg"></div>
+            <div class="settings-layout">
+                <nav class="tab-nav">
+                    <button class="tab-btn active" onclick="switchTab('ict', this)">Ideal Cycle Time</button>
+                </nav>
+                <div class="tab-content">
+                    <div id="tab-ict" class="tab-panel active">
+                        <h2>Ideal Cycle Times (Seconds per Case)</h2>
+                        <details>
+                            <summary>What is Ideal Cycle Time?</summary>
+                            <p>Ideal Cycle Time (ICT) is the theoretical minimum time to produce one case under perfect conditions. It drives the <strong>Performance</strong> metric: <em>Performance = (ICT × Cases Produced) / Running Time</em>. Set it to the machine's rated throughput — e.g. 10 s/case = 360 cases/hour. A value of 0 will cause Performance to read infinity.</p>
+                        </details>
+                        <table id="settingsTable">
+                            <thead>
+                                <tr>
+                                    <th>Machine</th>
+                                    <th>Ideal Cycle Time (s)</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="settingsBody">
+                            </tbody>
+                        </table>
+                        <div class="save-all-footer">
+                            <button id="saveAllBtn" onclick="saveAll()" disabled>Save all changes</button>
+                        </div>
+                        <div class="status-line" id="settingsStatus"></div>
+                        <div id="statusMsg" class="status-msg"></div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        function switchTab(id, btn) {
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById('tab-' + id).classList.add('active');
+            btn.classList.add('active');
+        }
+
         const machines = [
             { id: 'CasePacker1_A', name: 'Case Packer 1 - Side A' },
             { id: 'CasePacker1_B', name: 'Case Packer 1 - Side B' },
@@ -214,84 +169,159 @@
             { id: 'Palletizer', name: 'Palletizer' }
         ];
 
-        async function updateMachineStatus() {
-            const el = document.getElementById('lastUpdate');
-            if (!el) return;
+        const dirtyRows = new Set();
 
-            try {
-                const res = await fetch('/api/status');
-                const statuses = await res.json();
-                
-                if (statuses.length === 0) {
-                    el.innerText = 'Last Event: No Recent Events';
-                    el.style.color = '#888';
-                    return;
-                }
+        function validateICT(val) {
+            const n = parseFloat(val);
+            if (isNaN(n)) return 'Enter a number';
+            if (n < 0.5) return 'Min 0.5 s';
+            if (n > 600) return 'Max 600 s';
+            return null;
+        }
 
-                statuses.sort((a, b) => a.SecondsAgo - b.SecondsAgo);
-                const s = statuses[0];
+        function onICTInput(machineId) {
+            const input = document.getElementById(`ict-${machineId}`);
+            const errEl = document.getElementById(`err-${machineId}`);
+            const tr = document.getElementById(`row-${machineId}`);
+            const saveBtn = tr.querySelector('.save-single');
+            const err = validateICT(input.value);
 
-                const now = new Date();
-                const lastDate = new Date(now.getTime() - (s.SecondsAgo * 1000));
-                const timeStr = lastDate.toLocaleTimeString();
-                
-                el.innerText = 'Last Event: ' + timeStr;
-                el.style.color = s.SecondsAgo > 600 ? '#d73a49' : '#888';
-            } catch (e) { console.error('Status poll failed', e); }
+            if (err) {
+                input.classList.add('invalid');
+                errEl.textContent = err;
+                saveBtn.disabled = true;
+            } else {
+                input.classList.remove('invalid');
+                errEl.textContent = '';
+                saveBtn.disabled = false;
+                dirtyRows.add(machineId);
+                tr.classList.add('row-dirty');
+            }
+            updateSaveAllBtn();
+        }
+
+        function updateSaveAllBtn() {
+            const btn = document.getElementById('saveAllBtn');
+            if (!btn) return;
+            const hasInvalid = document.querySelectorAll('input.invalid').length > 0;
+            btn.disabled = dirtyRows.size === 0 || hasInvalid;
         }
 
         async function loadSettings() {
-            updateMachineStatus();
+            const tbody = document.getElementById('settingsBody');
+            tbody.innerHTML = '<tr><td colspan="3" class="status-line">Loading…</td></tr>';
             try {
                 const response = await fetch('/api/settings/cycle-times');
+                if (!response.ok) throw new Error('Server error ' + response.status);
                 const storedData = await response.json();
                 const settingsMap = new Map(storedData.map(d => [d.machine_id, d.ideal_cycle_time]));
 
-                const tbody = document.getElementById('settingsBody');
                 tbody.innerHTML = '';
-
+                dirtyRows.clear();
                 machines.forEach(m => {
                     const tr = document.createElement('tr');
+                    tr.id = `row-${m.id}`;
                     const currentVal = settingsMap.get(m.id) || 10.0;
                     tr.innerHTML = `
                         <td>${m.name}</td>
-                        <td><input type="number" step="0.1" value="${currentVal}" id="ict-${m.id}"></td>
-                        <td><button onclick="saveICT('${m.id}')">Save</button></td>
+                        <td>
+                            <input type="number" step="0.1" min="0.5" max="600" value="${currentVal}" id="ict-${m.id}" oninput="onICTInput('${m.id}')">
+                            <span class="inline-err" id="err-${m.id}"></span>
+                        </td>
+                        <td><button class="save-single" onclick="saveICT('${m.id}')">Save</button></td>
                     `;
                     tbody.appendChild(tr);
                 });
+                updateSaveAllBtn();
+                clearDataStatus('settingsStatus');
             } catch (err) {
                 console.error('Error loading settings:', err);
+                tbody.innerHTML = '';
+                showDataStatus('settingsStatus', 'error',
+                    'Could not load settings. <a href="#" onclick="loadSettings(); return false;">Retry</a>');
             }
         }
 
         async function saveICT(machineId) {
-            const ict = document.getElementById(`ict-${machineId}`).value;
+            const input = document.getElementById(`ict-${machineId}`);
+            if (validateICT(input.value)) return;
+
+            const tr = document.getElementById(`row-${machineId}`);
+            const saveBtn = tr.querySelector('.save-single');
             const statusMsg = document.getElementById('statusMsg');
-            
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving…';
+
             try {
                 const response = await fetch('/api/settings/cycle-times', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ machine_id: machineId, ideal_cycle_time: parseFloat(ict) })
+                    body: JSON.stringify({ machine_id: machineId, ideal_cycle_time: parseFloat(input.value) })
                 });
-                
+
                 if (response.ok) {
-                    statusMsg.innerText = `Saved ${machineId} successfully!`;
+                    dirtyRows.delete(machineId);
+                    tr.classList.remove('row-dirty');
+                    saveBtn.textContent = 'Save';
+                    updateSaveAllBtn();
+                    statusMsg.innerText = 'Saved successfully.';
                     statusMsg.style.color = 'var(--success)';
                     setTimeout(() => statusMsg.innerText = '', 3000);
                 } else {
-                    throw new Error('Failed to save');
+                    const body = await response.json().catch(() => ({}));
+                    throw new Error(body.error || 'Failed to save');
                 }
             } catch (err) {
-                statusMsg.innerText = 'Error saving settings.';
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+                statusMsg.innerText = 'Error: ' + err.message;
+                statusMsg.style.color = 'var(--error)';
+            }
+        }
+
+        async function saveAll() {
+            const entries = [];
+            for (const machineId of dirtyRows) {
+                entries.push({ machine_id: machineId, ideal_cycle_time: parseFloat(document.getElementById(`ict-${machineId}`).value) });
+            }
+            if (entries.length === 0) return;
+
+            const btn = document.getElementById('saveAllBtn');
+            const statusMsg = document.getElementById('statusMsg');
+            btn.disabled = true;
+            btn.textContent = 'Saving…';
+
+            try {
+                const response = await fetch('/api/settings/cycle-times/bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(entries)
+                });
+
+                if (response.ok) {
+                    entries.forEach(({ machine_id }) => {
+                        dirtyRows.delete(machine_id);
+                        document.getElementById(`row-${machine_id}`).classList.remove('row-dirty');
+                    });
+                    btn.textContent = 'Save all changes';
+                    updateSaveAllBtn();
+                    statusMsg.innerText = `Saved ${entries.length} machine${entries.length > 1 ? 's' : ''} successfully.`;
+                    statusMsg.style.color = 'var(--success)';
+                    setTimeout(() => statusMsg.innerText = '', 3000);
+                } else {
+                    const body = await response.json().catch(() => ({}));
+                    throw new Error(body.error || 'Failed to save');
+                }
+            } catch (err) {
+                btn.textContent = 'Save all changes';
+                updateSaveAllBtn();
+                statusMsg.innerText = 'Error: ' + err.message;
                 statusMsg.style.color = 'var(--error)';
             }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
             loadSettings();
-            setInterval(updateMachineStatus, 10000);
         });
     </script>
 </body>

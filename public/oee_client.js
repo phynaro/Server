@@ -5,6 +5,7 @@ let stateChart = null;
 let paretoChart = null;
 let currentTimelineData = [];
 let currentSort = { column: null, direction: 'asc' };
+let lastOeeSuccess = null;
 
 document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -16,8 +17,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (dateParam) {
         document.getElementById('dateFilter').value = dateParam;
     } else {
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('dateFilter').value = today;
+        const now = new Date();
+        const d = now.getHours() < 6 ? new Date(now.getTime() - 86400000) : now;
+        document.getElementById('dateFilter').value = d.toISOString().split('T')[0];
     }
 
     if (machineParam) {
@@ -52,7 +54,7 @@ async function updateMachineStatus() {
         const relevant = statuses.filter(s => s.Source === source || s.Source === baseName);
         
         if (relevant.length === 0) {
-            el.innerText = 'Last Update: No Recent Events';
+            el.innerText = 'No recent data';
             el.style.color = '#888';
             return;
         }
@@ -62,9 +64,11 @@ async function updateMachineStatus() {
 
         const now = new Date();
         const lastDate = new Date(now.getTime() - (s.SecondsAgo * 1000));
-        const timeStr = lastDate.toLocaleTimeString();
-        
-        el.innerText = 'Last Event: ' + timeStr;
+        const timeStr = lastDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const minsAgo = Math.floor(s.SecondsAgo / 60);
+        const agoStr = minsAgo < 1 ? 'just now' : minsAgo + 'm ago';
+
+        el.innerText = 'Last data: ' + timeStr + ' (' + agoStr + ')';
         el.style.color = s.SecondsAgo > 600 ? '#d73a49' : '#888';
     } catch (e) { console.error('Status poll failed', e); }
 }
@@ -107,27 +111,26 @@ async function updateDashboard() {
 
     try {
         let ict = document.getElementById('ictDisplay').innerText;
-        // If ICT is still '--', wait or fetch it again (though fetchStoredICT should have handled it)
         if (ict === '--') {
             console.log('ICT not yet loaded, fetching OEE with default/auto ICT');
         }
 
         const fetchUrl = `/api/oee?date=${date}&source=${source}&idealCycleTime=${ict}`;
-        console.log(`Fetching OEE data from: ${fetchUrl}`);
-        
         const response = await fetch(fetchUrl);
+        if (!response.ok) throw new Error('Server error ' + response.status);
         const data = await response.json();
 
         if (!data || !data.kpis) {
-            alert('No data found for this selection.');
+            showDataStatus('oeeDataStatus', '', 'No data for this period.');
             return;
         }
 
-        // Default sort: Newer top (Time Descending)
+        lastOeeSuccess = new Date();
+        clearDataStatus('oeeDataStatus');
+
         currentTimelineData = data.timeline.sort((a, b) => b.startTime.localeCompare(a.startTime));
         currentSort = { column: 0, direction: 'desc' };
-        
-        // Update UI Indicators for default sort
+
         const ths = document.querySelectorAll('#timelineTable th');
         ths.forEach((th, i) => {
             th.classList.remove('sort-asc', 'sort-desc');
@@ -138,12 +141,17 @@ async function updateDashboard() {
         renderStateChart(data.summary);
         renderParetoChart(data.topLosses);
         renderTimeline(currentTimelineData);
-        
-        // Final sync with machine status
+
         updateMachineStatus();
 
     } catch (err) {
         console.error('Error fetching OEE data:', err);
+        const lastStr = lastOeeSuccess
+            ? 'Last successful: ' + lastOeeSuccess.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : '';
+        showDataStatus('oeeDataStatus', 'error',
+            'Could not load data.' + (lastStr ? ' ' + lastStr + '.' : '') +
+            ' <a href="#" onclick="updateDashboard(); return false;">Retry</a>');
     }
 }
 
@@ -235,44 +243,88 @@ function renderParetoChart(losses) {
     const ctx = document.getElementById('paretoChart').getContext('2d');
     if (paretoChart) paretoChart.destroy();
 
+    const totalDuration = losses.reduce((sum, l) => sum + l.duration, 0);
+    let cumSum = 0;
+    const cumulative = losses.map(l => {
+        cumSum += l.duration;
+        return parseFloat(((cumSum / totalDuration) * 100).toFixed(1));
+    });
+
     paretoChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: losses.map(l => l.reason), // Show full text
-            datasets: [{
-                label: 'Loss Duration (min)',
-                data: losses.map(l => (l.duration / 60).toFixed(1)),
-                backgroundColor: '#a4262c',
-                borderRadius: 4
-            }]
+            labels: losses.map(l => l.reason),
+            datasets: [
+                {
+                    label: 'Loss Duration (min)',
+                    data: losses.map(l => (l.duration / 60).toFixed(1)),
+                    backgroundColor: '#a4262c',
+                    borderRadius: 4,
+                    xAxisID: 'x'
+                },
+                {
+                    type: 'line',
+                    label: 'Cumulative %',
+                    data: cumulative,
+                    borderColor: '#0056b3',
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#0056b3',
+                    fill: false,
+                    tension: 0,
+                    xAxisID: 'cumPct'
+                },
+                {
+                    type: 'line',
+                    label: '80% target',
+                    data: losses.map(() => 80),
+                    borderColor: '#888',
+                    borderWidth: 1,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    xAxisID: 'cumPct'
+                }
+            ]
         },
         options: {
             indexAxis: 'y',
             maintainAspectRatio: false,
-            layout: {
-                padding: {
-                    left: 20 // Extra space for labels
-                }
-            },
+            layout: { padding: { left: 20 } },
             plugins: {
-                legend: { display: false },
+                legend: {
+                    display: true,
+                    labels: {
+                        filter: item => item.text !== '80% target',
+                        boxWidth: 12,
+                        font: { size: 11 }
+                    }
+                },
                 tooltip: {
                     enabled: true,
                     bodyFont: { size: 12 },
                     callbacks: {
-                        label: (ctx) => `Duration: ${ctx.raw} min`
+                        label: (ctx) => {
+                            if (ctx.dataset.label === 'Loss Duration (min)') return `Duration: ${ctx.raw} min`;
+                            if (ctx.dataset.label === 'Cumulative %') return `Cumulative: ${ctx.raw}%`;
+                            return null;
+                        }
                     }
                 },
-                datalabels: { display: false } // Hide labels on Pareto chart
+                datalabels: { display: false }
             },
             scales: {
-                x: { beginAtZero: true, title: { display: true, text: 'Minutes' } },
-                y: {
-                    ticks: {
-                        autoSkip: false,
-                        font: { size: 11 }
-                    }
-                }
+                x: { beginAtZero: true, position: 'bottom', title: { display: true, text: 'Minutes' } },
+                cumPct: {
+                    type: 'linear',
+                    position: 'top',
+                    min: 0,
+                    max: 100,
+                    title: { display: true, text: 'Cumulative %' },
+                    ticks: { callback: v => v + '%' },
+                    grid: { drawOnChartArea: false }
+                },
+                y: { ticks: { autoSkip: false, font: { size: 11 } } }
             }
         }
     });
@@ -282,7 +334,11 @@ function renderTimeline(timeline) {
     const tbody = document.getElementById('timelineBody');
     tbody.innerHTML = '';
 
-    // If no explicit sort, show original (usually chronological)
+    if (timeline.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="status-line">No data for this period.</td></tr>';
+        return;
+    }
+
     timeline.forEach(row => {
         const tr = document.createElement('tr');
         
