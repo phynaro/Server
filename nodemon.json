@@ -1,0 +1,4 @@
+{
+  "ignore": ["*.db", "*.db-journal", "*.db-wal", "node_modules", "public"],
+  "ext": "js,mjs,cjs,json"
+}

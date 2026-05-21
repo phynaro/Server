@@ -20,6 +20,8 @@ const reasonMap = {
     302: 'Sorter Roller Faulted',
     303: 'Flip A Roller Faulted',
     304: 'Flip B Roller Faulted',
+    305: 'No Pallet',
+    306: 'No Demand',
     401: 'Machine Stopped',
     402: 'Machine Idle',
     403: 'Machine Held',
@@ -43,6 +45,9 @@ const reasonMap = {
     516: 'Flipper Vacuum Error',
     520: 'Safety Open',
     530: 'Robot Error',
+    551: 'Gripper Vacuum Error',
+    552: 'Gripper Error',
+    553: 'Top Sheet Empty',
     600: 'Module Disabled'
 };
 
@@ -166,11 +171,14 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
         performance: (performance * 100).toFixed(1),
         quality: (quality * 100).toFixed(1),
         oee: (oeeValue * 100).toFixed(1),
-        mtbf: faultCount > 0 ? Math.floor(techUptime / faultCount) : techUptime,
+        mtbf: faultCount > 0 ? Math.floor(techUptime / faultCount) : null,
         mttr: faultCount > 0 ? Math.floor(faultTime / faultCount) : 0,
         totalFailures: faultCount,
         totalCount: totalCount,
-        badCount: badCount
+        badCount: badCount,
+        runTime: runTime,
+        availableTime: availableTime,
+        totalLoss: availableTime - runTime
     };
 
     const summary = Object.keys(totalsByState).map(label => ({

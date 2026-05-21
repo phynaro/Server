@@ -1,0 +1,633 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Reliability Trends - Thantawan Industry Vietnam</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #0056b3; 
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --text: #333333;
+            --success: #107c10;
+            --error: #a4262c;
+            --warning: #ffb900;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            margin: 0;
+            padding: 20px;
+        }
+        .container { max-width: 1850px; margin: 0 auto; }
+        header { 
+            background: white;
+            padding: 12px 25px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            border-bottom: 4px solid var(--primary);
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .brand-group { display: flex; align-items: center; gap: 20px; flex: 1; }
+        .logo { height: 40px; width: auto; }
+        .brand-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+        .company-name { font-size: 0.9rem; font-weight: 800; color: #333; text-transform: uppercase; line-height: 1; }
+        .dashboard-title { font-weight: 600; color: #888; font-size: 0.75rem; margin: 0; padding: 0; border: none; text-transform: uppercase; letter-spacing: 0.5px; }
+        
+        .filters { 
+            display: flex; 
+            gap: 20px; 
+            align-items: center; 
+            margin-bottom: 25px; 
+            background: white; 
+            padding: 25px 20px 12px 20px; 
+            border-radius: 8px; 
+            border: 1px solid #eee;
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            flex-wrap: wrap;
+        }
+        @media (max-width: 768px) {
+            .filters { padding-top: 45px; flex-direction: column; align-items: stretch; gap: 15px; }
+        }
+        .filter-group { display: flex; align-items: center; gap: 10px; }
+        label { font-size: 0.8rem; font-weight: 600; color: #666; white-space: nowrap; }
+        select, input, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 10px 20px; }
+        button:hover { background: #004494; }
+
+        .status-box { 
+            position: absolute; 
+            top: 8px; 
+            right: 20px; 
+            font-size: 0.75rem; 
+            color: #666; 
+            font-weight: 600;
+        }
+
+        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
+        
+        .chart-container { height: 450px; position: relative; }
+        .chart-grid { display: flex; flex-direction: column; gap: 20px; margin-bottom: 20px; }
+        .chart-grid .card { margin-bottom: 0; }
+        @media (min-width: 1500px) {
+            .chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
+        }
+        
+        .nav-link { 
+            text-decoration: none; 
+            color: #666; 
+            font-weight: 600; 
+            font-size: 0.9rem; 
+            transition: color 0.2s;
+        }
+        .nav-link:hover { color: var(--primary); }
+
+        .nav-menu {
+            display: flex;
+            gap: 25px;
+            align-items: center;
+        }
+
+        /* Mobile Menu Styles */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            z-index: 10;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .menu-toggle span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background-color: #333;
+            border-radius: 1px;
+        }
+
+        @media (max-width: 1000px) {
+            header { 
+                flex-wrap: wrap; 
+                padding: 15px 20px; 
+                justify-content: space-between;
+            }
+            .menu-toggle { display: flex; }
+            .nav-menu { 
+                display: none; 
+                flex-direction: column; 
+                width: 100%; 
+                margin-top: 15px; 
+                padding-top: 15px; 
+                border-top: 1px solid #f0f0f0; 
+                gap: 5px;
+                align-items: flex-start;
+            }
+            .nav-menu.active { display: flex; }
+            .nav-link { 
+                padding: 12px 0; 
+                width: 100%; 
+                color: #444;
+            }
+            .status-box { position: static; width: 100%; border-top: 1px solid #f0f0f0; margin-top: 10px; padding-top: 10px; }
+        }
+
+        @media (max-width: 600px) {
+            .logo { height: 30px; }
+            .brand-group { gap: 12px; }
+            .company-name { font-size: 0.75rem; }
+            .dashboard-title { font-size: 0.65rem; }
+            header { padding: 10px 15px; }
+        }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #eee; }
+        th { background: #faf9f8; font-weight: 600; color: #666; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="brand-group">
+                <img src="https://kinetix.co.th/wp-content/uploads/2023/02/cropped-Kinetix_Web_Logo2-1.png" alt="Kinetix Logo" class="logo">
+                <div class="brand-text">
+                    <div class="company-name">Thantawan Industry Vietnam</div>
+                    <div class="dashboard-title">Reliability Trends</div>
+                </div>
+            </div>
+            <button class="menu-toggle" onclick="toggleMenu()" aria-label="Toggle navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="nav-menu" id="navMenu">
+                <a href="index.html" class="nav-link">Production Dashboard</a>
+                <a href="oee.html" class="nav-link">OEE Dashboard</a>
+                <a href="reliability.html" class="nav-link">Reliability Trends</a>
+                <a href="quality.html" class="nav-link">Quality Data</a>
+                <a href="settings.html" class="nav-link">Settings</a>
+            </div>
+        </header>
+
+        <script>
+            function toggleMenu() {
+                const navMenu = document.getElementById('navMenu');
+                navMenu.classList.toggle('active');
+            }
+        </script>
+
+        <div class="filters">
+            <div class="status-box">
+                <span id="lastUpdate">Last Event: --:--:--</span>
+            </div>
+            <div class="filter-group">
+                <label>Machine</label>
+                <select id="machineSelect" onchange="updateTrends()">
+                    <option value="CasePacker1_A">Case Packer 1 - Side A</option>
+                    <option value="CasePacker1_B">Case Packer 1 - Side B</option>
+                    <option value="CasePacker2_A">Case Packer 2 - Side A</option>
+                    <option value="CasePacker2_B">Case Packer 2 - Side B</option>
+                    <option value="CasePacker3_A">Case Packer 3 - Side A</option>
+                    <option value="CasePacker3_B">Case Packer 3 - Side B</option>
+                    <option value="CaseForming">Case Forming</option>
+                    <option value="Palletizer">Palletizer</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label>Period Mode</label>
+                <select id="periodMode" onchange="togglePeriodInputs()">
+                    <option value="rolling">Rolling Window</option>
+                    <option value="month">Specific Month</option>
+                </select>
+            </div>
+
+            <div class="filter-group" id="rollingGroup">
+                <label>Window</label>
+                <select id="daysSelect" onchange="updateTrends()">
+                    <option value="7">Last 7 Days</option>
+                    <option value="30" selected>Last 30 Days</option>
+                    <option value="90">Last 90 Days</option>
+                </select>
+            </div>
+
+            <div class="filter-group" id="monthGroup" style="display: none;">
+                <label>Month</label>
+                <div style="display: flex; gap: 5px;">
+                    <select id="monthSelect" onchange="updateTrends()" style="flex: 1;">
+                        <option value="1">Jan</option><option value="2">Feb</option><option value="3">Mar</option>
+                        <option value="4">Apr</option><option value="5" selected>May</option><option value="6">Jun</option>
+                        <option value="7">Jul</option><option value="8">Aug</option><option value="9">Sep</option>
+                        <option value="10">Oct</option><option value="11">Nov</option><option value="12">Dec</option>
+                    </select>
+                    <select id="yearSelect" onchange="updateTrends()" style="flex: 1;">
+                        <option value="2026" selected>2026</option>
+                        <option value="2025">2025</option>
+                    </select>
+                </div>
+            </div>
+
+            <button onclick="updateTrends()">Refresh</button>
+        </div>
+
+        <div class="chart-grid">
+            <div class="card">
+                <h2 id="oeeTitle">OEE Stability Trend</h2>
+                <div class="chart-container">
+                    <canvas id="oeeChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 id="lossesTitle">Cumulative Top 10 Losses</h2>
+                <div class="chart-container">
+                    <canvas id="lossChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 id="mtbfTitle">MTBF Trend</h2>
+                <div class="chart-container">
+                    <canvas id="mtbfChart"></canvas>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2 id="mttrTitle">MTTR Trend</h2>
+                <div class="chart-container">
+                    <canvas id="mttrChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Annual Summary -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin-bottom: 0;">Annual Performance Summary (Jan-Dec)</h2>
+                <div class="filter-group" style="flex-direction: row; align-items: center; gap: 10px;">
+                    <label style="font-size: 0.8rem; font-weight: 600;">Full Year View:</label>
+                    <select id="annualYearSelect" onchange="updateMonthlyStats()">
+                        <option value="2026" selected>2026</option>
+                        <option value="2025">2025</option>
+                    </select>
+                </div>
+            </div>
+            <div style="overflow-x: auto;">
+                <table id="monthlyTable">
+                    <thead>
+                        <tr>
+                            <th>Month</th>
+                            <th>OEE (%)</th>
+                            <th>A (%)</th>
+                            <th>P (%)</th>
+                            <th>Q (%)</th>
+                            <th>MTBF (min)</th>
+                            <th>Total Qty</th>
+                        </tr>
+                    </thead>
+                    <tbody id="monthlyBody"></tbody>
+                    <tfoot id="ytdFoot" style="background: #f0f0f0; font-weight: bold;"></tfoot>
+                </table>
+            </div>
+        </div>
+
+        <!-- Annual Heatmap at the very bottom -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                <h2 style="margin-bottom: 0;">OEE Annual Heatmap</h2>
+                <div style="display: flex; align-items: center; gap: 10px; font-size: 0.75rem; color: #666;">
+                    <span>Lower OEE</span>
+                    <div style="display: flex; gap: 2px;">
+                        <div style="width: 12px; height: 12px; background: #ebedf0; border-radius: 2px;"></div>
+                        <div style="width: 12px; height: 12px; background: #ffcdd2; border-radius: 2px;"></div>
+                        <div style="width: 12px; height: 12px; background: #fff9c4; border-radius: 2px;"></div>
+                        <div style="width: 12px; height: 12px; background: #c8e6c9; border-radius: 2px;"></div>
+                        <div style="width: 12px; height: 12px; background: #4caf50; border-radius: 2px;"></div>
+                    </div>
+                    <span>Higher OEE</span>
+                </div>
+            </div>
+            <div id="heatmapContainer" style="display: grid; grid-template-columns: repeat(53, 1fr); gap: 4px; overflow-x: auto; padding-bottom: 10px;">
+                <!-- Heatmap cells will be generated here -->
+            </div>
+            <div id="heatmapMonths" style="display: grid; grid-template-columns: repeat(53, 1fr); gap: 4px; margin-top: 5px; font-size: 0.7rem; color: #888;">
+                <!-- Month labels will be generated here -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let mtbfChart = null;
+        let mttrChart = null;
+        let oeeChart = null;
+        let lossChart = null;
+
+        function togglePeriodInputs() {
+            const mode = document.getElementById('periodMode').value;
+            document.getElementById('rollingGroup').style.display = mode === 'rolling' ? 'flex' : 'none';
+            document.getElementById('monthGroup').style.display = mode === 'month' ? 'flex' : 'none';
+            updateTrends();
+        }
+
+        function initFromUrl() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const machineParam = urlParams.get('machine');
+            const modeParam = urlParams.get('mode');
+            const daysParam = urlParams.get('days');
+            const monthParam = urlParams.get('month');
+            const yearParam = urlParams.get('year');
+
+            if (machineParam) document.getElementById('machineSelect').value = machineParam;
+            if (modeParam) document.getElementById('periodMode').value = modeParam;
+            if (daysParam) document.getElementById('daysSelect').value = daysParam;
+            if (monthParam) document.getElementById('monthSelect').value = monthParam;
+            if (yearParam) document.getElementById('yearSelect').value = yearParam;
+
+            togglePeriodInputs();
+        }
+
+        async function updateMachineStatus() {
+            const source = document.getElementById('machineSelect').value;
+            const el = document.getElementById('lastUpdate');
+            if (!source || !el) return;
+
+            try {
+                const res = await fetch('/api/status');
+                const statuses = await res.json();
+                
+                const baseName = source.split('_')[0]; 
+                const relevant = statuses.filter(s => s.Source === source || s.Source === baseName);
+                
+                if (relevant.length === 0) {
+                    el.innerText = 'Last Event: No Recent Events';
+                    el.style.color = '#888';
+                    return;
+                }
+
+                relevant.sort((a, b) => a.SecondsAgo - b.SecondsAgo);
+                const s = relevant[0];
+
+                const now = new Date();
+                const lastDate = new Date(now.getTime() - (s.SecondsAgo * 1000));
+                const timeStr = lastDate.toLocaleTimeString();
+                
+                el.innerText = 'Last Event: ' + timeStr;
+                el.style.color = s.SecondsAgo > 600 ? '#d73a49' : '#888';
+            } catch (e) { console.error('Status poll failed', e); }
+        }
+
+        async function updateTrends() {
+            updateMachineStatus();
+            const machine = document.getElementById('machineSelect').value;
+            const mode = document.getElementById('periodMode').value;
+            
+            // Update URL without reload
+            const url = new URL(window.location);
+            url.searchParams.set('machine', machine);
+            url.searchParams.set('mode', mode);
+            if (mode === 'rolling') {
+                url.searchParams.set('days', document.getElementById('daysSelect').value);
+                url.searchParams.delete('month');
+                url.searchParams.delete('year');
+            } else {
+                url.searchParams.set('month', document.getElementById('monthSelect').value);
+                url.searchParams.set('year', document.getElementById('yearSelect').value);
+                url.searchParams.delete('days');
+            }
+            window.history.pushState({}, '', url);
+
+            // Update navigation links to carry over the machine selection
+            const oeeLink = document.querySelector('a[href^="oee.html"]');
+            if (oeeLink) {
+                oeeLink.href = `oee.html?machine=${machine}`;
+            }
+
+            let urlKpi, urlRel, urlLoss, titleSuffix;
+
+            if (mode === 'rolling') {
+                const days = document.getElementById('daysSelect').value;
+                urlKpi = `/api/kpi/trends?source=${machine}&days=${days}`;
+                urlRel = `/api/reliability/trends?source=${machine}&days=${days}`;
+                urlLoss = `/api/losses/trends?source=${machine}&days=${days}`;
+                titleSuffix = `(Last ${days} Days)`;
+            } else {
+                const month = document.getElementById('monthSelect').value;
+                const year = document.getElementById('yearSelect').value;
+                const monthName = document.getElementById('monthSelect').options[document.getElementById('monthSelect').selectedIndex].text;
+                // Reuse existing endpoints but we need them to support month/year
+                urlKpi = `/api/kpi/daily-month?source=${machine}&month=${month}&year=${year}`;
+                // For reliability and losses, we'll need to update server to support these filters
+                urlRel = `/api/reliability/trends?source=${machine}&month=${month}&year=${year}`;
+                urlLoss = `/api/losses/trends?source=${machine}&month=${month}&year=${year}`;
+                titleSuffix = `(${monthName} ${year})`;
+            }
+
+            // Update Titles
+            document.getElementById('lossesTitle').innerText = `Cumulative Top 10 Losses ${titleSuffix}`;
+            document.getElementById('oeeTitle').innerText = `OEE Stability Trend ${titleSuffix}`;
+            document.getElementById('mtbfTitle').innerText = `MTBF Trend ${titleSuffix}`;
+            document.getElementById('mttrTitle').innerText = `MTTR Trend ${titleSuffix}`;
+
+            try {
+                const [kpiRes, relRes, lossRes] = await Promise.all([
+                    fetch(urlKpi), fetch(urlRel), fetch(urlLoss)
+                ]);
+
+                const kpiData = await kpiRes.json();
+                const relData = await relRes.json();
+                const lossData = await lossRes.json();
+
+                renderOeeChart(kpiData);
+                renderReliabilityCharts(relData);
+                renderLossChart(lossData);
+                updateMonthlyStats(); 
+
+            } catch (err) {
+                console.error('Error fetching trend data:', err);
+            }
+        }
+
+        function renderOeeChart(data) {
+            const labels = data.map(d => d.Date.includes('-') ? d.Date.split('-')[2] : d.Date);
+            const ctx = document.getElementById('oeeChart').getContext('2d');
+            if (oeeChart) oeeChart.destroy();
+            
+            oeeChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: 'OEE (%)', data: data.map(d => d.Oee), borderColor: '#107c10', borderWidth: 3, tension: 0.1 },
+                        { label: 'A (%)', data: data.map(d => d.Availability), borderColor: '#0056b3', borderDash: [5,5], borderWidth: 1, pointRadius: 0 },
+                        { label: 'P (%)', data: data.map(d => d.Performance), borderColor: '#ffb900', borderDash: [3,3], borderWidth: 1, pointRadius: 0 },
+                        { label: 'Q (%)', data: data.map(d => d.Quality), borderColor: '#a4262c', borderDash: [2,2], borderWidth: 1, pointRadius: 0 }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, max: 100 } },
+                    plugins: { legend: { position: 'top' }, tooltip: { mode: 'index', intersect: false } }
+                }
+            });
+        }
+
+        function renderReliabilityCharts(data) {
+            const labels = data.map(d => d.Date.includes('-') ? d.Date.split('-')[2] : d.Date);
+            
+            // MTBF
+            const ctxMtbf = document.getElementById('mtbfChart').getContext('2d');
+            if (mtbfChart) mtbfChart.destroy();
+            mtbfChart = new Chart(ctxMtbf, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'MTBF (min)',
+                        data: data.map(d => (d.RollingMtbf / 60).toFixed(1)),
+                        borderColor: '#0056b3', backgroundColor: 'rgba(0, 86, 179, 0.1)', fill: true, tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+
+            // MTTR
+            const ctxMttr = document.getElementById('mttrChart').getContext('2d');
+            if (mttrChart) mttrChart.destroy();
+            mttrChart = new Chart(ctxMttr, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'MTTR (min)',
+                        data: data.map(d => (d.RollingMttr / 60).toFixed(1)),
+                        borderColor: '#a4262c', backgroundColor: 'rgba(164, 38, 44, 0.1)', fill: true, tension: 0.3
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            });
+        }
+
+        function renderLossChart(data) {
+            const ctx = document.getElementById('lossChart').getContext('2d');
+            if (lossChart) lossChart.destroy();
+            lossChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.reason),
+                    datasets: [{ data: data.map(d => (d.duration / 60).toFixed(1)), backgroundColor: '#a4262c' }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { beginAtZero: true } }
+                }
+            });
+        }
+
+        async function updateMonthlyStats() {
+            const machine = document.getElementById('machineSelect').value;
+            const year = document.getElementById('annualYearSelect').value;
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+            try {
+                // Fetch Yearly Heatmap Data
+                const heatmapRes = await fetch(`/api/kpi/yearly-heatmap?source=${machine}&year=${year}`);
+                const heatmapData = await heatmapRes.json();
+                renderYearlyHeatmap(heatmapData, year);
+
+                const response = await fetch(`/api/kpi/monthly?source=${machine}&year=${year}`);
+                const data = await response.json();
+                const tbody = document.getElementById('monthlyBody');
+                tbody.innerHTML = '';
+                const dataMap = {};
+                data.monthly.forEach(row => { dataMap[parseInt(row.Month)] = row; });
+
+                for (let m = 1; m <= 12; m++) {
+                    const row = dataMap[m];
+                    const tr = document.createElement('tr');
+                    if (row) {
+                        tr.innerHTML = `<td>${monthNames[m-1]}</td><td style="font-weight:bold; color:var(--success)">${row.AvgOee.toFixed(1)}%</td><td>${row.AvgAvail.toFixed(1)}%</td><td>${row.AvgPerf.toFixed(1)}%</td><td>${row.AvgQual.toFixed(1)}%</td><td>${row.MtbfMin ? row.MtbfMin.toFixed(0) : 'N/A'}</td><td>${row.TotalQty.toLocaleString()}</td>`;
+                    } else {
+                        tr.innerHTML = `<td style="color: #ccc;">${monthNames[m-1]}</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td><td style="color: #ccc;">-</td>`;
+                    }
+                    tbody.appendChild(tr);
+                }
+
+                const tfoot = document.getElementById('ytdFoot');
+                tfoot.innerHTML = `<tr><td>YEAR TO DATE (YTD)</td><td>${data.ytd.Oee ? data.ytd.Oee.toFixed(1) : 0}%</td><td>${data.ytd.Avail ? data.ytd.Avail.toFixed(1) : 0}%</td><td>${data.ytd.Perf ? data.ytd.Perf.toFixed(1) : 0}%</td><td>${data.ytd.Qual ? data.ytd.Qual.toFixed(1) : 0}%</td><td>${data.ytd.Mtbf ? data.ytd.Mtbf.toFixed(0) : 'N/A'}</td><td>${data.ytd.TotalQty ? data.ytd.TotalQty.toLocaleString() : 0}</td></tr>`;
+            } catch (err) { console.error(err); }
+        }
+
+        function renderYearlyHeatmap(data, year) {
+            const container = document.getElementById('heatmapContainer');
+            const monthsHeader = document.getElementById('heatmapMonths');
+            container.innerHTML = '';
+            monthsHeader.innerHTML = '';
+
+            const dataMap = {};
+            data.forEach(d => { dataMap[d.Date] = d.Oee; });
+
+            const daysInYear = [];
+            const startDate = new Date(year, 0, 1);
+            const endDate = new Date(year, 11, 31);
+            
+            let curr = new Date(startDate);
+            const firstDayOfWeek = curr.getDay();
+            for (let i = 0; i < firstDayOfWeek; i++) { daysInYear.push(null); }
+            while (curr <= endDate) {
+                daysInYear.push(new Date(curr));
+                curr.setDate(curr.getDate() + 1);
+            }
+
+            container.style.gridTemplateRows = 'repeat(7, 12px)';
+            container.style.gridAutoFlow = 'column';
+            container.style.height = '110px';
+
+            daysInYear.forEach(date => {
+                const cell = document.createElement('div');
+                cell.style.width = '12px'; cell.style.height = '12px'; cell.style.borderRadius = '2px';
+                if (date) {
+                    const dateStr = date.toISOString().split('T')[0];
+                    const oee = dataMap[dateStr];
+                    cell.title = `${dateStr}: ${oee ? oee.toFixed(1) + '%' : 'No Data'}`;
+                    if (oee === undefined) cell.style.background = '#ebedf0';
+                    else if (oee < 40) cell.style.background = '#ffcdd2';
+                    else if (oee < 60) cell.style.background = '#fff9c4';
+                    else if (oee < 80) cell.style.background = '#c8e6c9';
+                    else cell.style.background = '#4caf50';
+                    cell.style.cursor = 'pointer';
+                    cell.onclick = () => { window.location.href = `oee.html?date=${dateStr}&machine=${document.getElementById('machineSelect').value}`; };
+                } else {
+                    cell.style.visibility = 'hidden';
+                }
+                container.appendChild(cell);
+            });
+
+            const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+            for (let i = 0; i < 12; i++) {
+                const label = document.createElement('div');
+                label.innerText = monthNames[i];
+                label.style.gridColumn = `span ${Math.floor(53/12)}`;
+                monthsHeader.appendChild(label);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initFromUrl();
+            updateMachineStatus();
+            setInterval(updateMachineStatus, 10000);
+        });
+    </script>
+</body>
+</html>

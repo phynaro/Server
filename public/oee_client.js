@@ -7,11 +7,67 @@ let currentTimelineData = [];
 let currentSort = { column: null, direction: 'asc' };
 
 document.addEventListener('DOMContentLoaded', () => {
-    // Set default date to today
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('dateFilter').value = today;
+    const urlParams = new URLSearchParams(window.location.search);
+    const dateParam = urlParams.get('date');
+    const machineParam = urlParams.get('machine');
+
+    console.log('OEE Dashboard Init - Params:', { dateParam, machineParam });
+
+    if (dateParam) {
+        document.getElementById('dateFilter').value = dateParam;
+    } else {
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('dateFilter').value = today;
+    }
+
+    if (machineParam) {
+        const machineSelect = document.getElementById('machineSelect');
+        // Check if the machine exists in the options
+        const exists = Array.from(machineSelect.options).some(opt => opt.value === machineParam);
+        if (exists) {
+            machineSelect.value = machineParam;
+        } else {
+            console.warn(`Machine ${machineParam} not found in select options.`);
+        }
+    }
+
     fetchStoredICT(); // Also calls updateDashboard
+    
+    // Start status polling
+    updateMachineStatus();
+    setInterval(updateMachineStatus, 10000);
 });
+
+async function updateMachineStatus() {
+    const source = document.getElementById('machineSelect').value;
+    const el = document.getElementById('lastUpdate');
+    if (!source || !el) return;
+
+    try {
+        const res = await fetch('/api/status');
+        const statuses = await res.json();
+        console.log('OEE Machine Statuses:', statuses);
+        
+        const baseName = source.split('_')[0]; 
+        const relevant = statuses.filter(s => s.Source === source || s.Source === baseName);
+        
+        if (relevant.length === 0) {
+            el.innerText = 'Last Update: No Recent Events';
+            el.style.color = '#888';
+            return;
+        }
+
+        relevant.sort((a, b) => a.SecondsAgo - b.SecondsAgo);
+        const s = relevant[0];
+
+        const now = new Date();
+        const lastDate = new Date(now.getTime() - (s.SecondsAgo * 1000));
+        const timeStr = lastDate.toLocaleTimeString();
+        
+        el.innerText = 'Last Event: ' + timeStr;
+        el.style.color = s.SecondsAgo > 600 ? '#d73a49' : '#888';
+    } catch (e) { console.error('Status poll failed', e); }
+}
 
 async function fetchStoredICT() {
     const source = document.getElementById('machineSelect').value;
@@ -34,10 +90,32 @@ async function updateDashboard() {
 
     if (!date || !source) return;
 
+    // Trigger immediate status refresh
+    updateMachineStatus();
+
+    // Update URL without reload to reflect current selection
+    const url = new URL(window.location);
+    url.searchParams.set('date', date);
+    url.searchParams.set('machine', source);
+    window.history.pushState({}, '', url);
+
+    // Update navigation links to carry over the machine selection
+    const relLink = document.querySelector('a[href^="reliability.html"]');
+    if (relLink) {
+        relLink.href = `reliability.html?machine=${source}`;
+    }
+
     try {
-        // Backend now handles ICT lookup if not passed, but we can pass it if we want to be explicit
-        const ict = document.getElementById('ictDisplay').innerText;
-        const response = await fetch(`/api/oee?date=${date}&source=${source}&idealCycleTime=${ict}`);
+        let ict = document.getElementById('ictDisplay').innerText;
+        // If ICT is still '--', wait or fetch it again (though fetchStoredICT should have handled it)
+        if (ict === '--') {
+            console.log('ICT not yet loaded, fetching OEE with default/auto ICT');
+        }
+
+        const fetchUrl = `/api/oee?date=${date}&source=${source}&idealCycleTime=${ict}`;
+        console.log(`Fetching OEE data from: ${fetchUrl}`);
+        
+        const response = await fetch(fetchUrl);
         const data = await response.json();
 
         if (!data || !data.kpis) {
@@ -60,6 +138,9 @@ async function updateDashboard() {
         renderStateChart(data.summary);
         renderParetoChart(data.topLosses);
         renderTimeline(currentTimelineData);
+        
+        // Final sync with machine status
+        updateMachineStatus();
 
     } catch (err) {
         console.error('Error fetching OEE data:', err);
@@ -73,7 +154,12 @@ function renderKPIs(kpis) {
     document.getElementById('kpiQuality').innerText = kpis.quality + '%';
     document.getElementById('kpiOee').innerText = kpis.oee + '%';
     
-    // Update sub-text with raw counts
+    // Update sub-text labels
+    const formatLoss = (sec) => {
+        if (sec >= 3600) return (sec / 3600).toFixed(1) + 'h';
+        return Math.floor(sec / 60) + 'm';
+    };
+    document.getElementById('kpiTotalLoss').innerText = `Total Loss : ${formatLoss(kpis.totalLoss)}`;
     document.getElementById('kpiPerformance').nextElementSibling.innerText = `Total Produced: ${kpis.totalCount} cases`;
     document.getElementById('kpiQuality').nextElementSibling.innerText = `Rejects: ${kpis.badCount} cases`;
     
@@ -84,8 +170,8 @@ function renderKPIs(kpis) {
         return sec + 's';
     };
 
-    document.getElementById('kpiMtbf').innerText = formatTime(kpis.mtbf);
-    document.getElementById('kpiMttr').innerText = formatTime(kpis.mttr);
+    document.getElementById('kpiMtbf').innerText = kpis.mtbf ? formatTime(kpis.mtbf) : 'N/A';
+    document.getElementById('kpiMttr').innerText = kpis.totalFailures > 0 ? formatTime(kpis.mttr) : 'No Faults';
 }
 
 function renderStateChart(summary) {

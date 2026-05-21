@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
 const oeeHelper = require('./oee_helper');
+const scheduler = require('./scheduler_helper');
 
 const app = express();
 const port = 3001;
@@ -114,7 +115,47 @@ db.serialize(() => {
         if (err) console.error('Error creating CycleTimes table:', err.message);
         else console.log('CycleTimes table ready.');
     });
+
+    // Create SourceStatus table for heartbeat tracking
+    db.run(`CREATE TABLE IF NOT EXISTS SourceStatus (
+        Source TEXT PRIMARY KEY,
+        LastSeen DATETIME DEFAULT CURRENT_TIMESTAMP
+    )`, (err) => {
+        if (err) console.error('Error creating SourceStatus table:', err.message);
+        else console.log('SourceStatus table ready.');
+    });
 });
+
+/**
+ * Heartbeat Helper
+ */
+function updateHeartbeat(source, timestamp) {
+    if (!source) return;
+
+    let query;
+    let params;
+
+    if (timestamp) {
+        // Update only if the provided timestamp is newer than what we have
+        query = `INSERT INTO SourceStatus (Source, LastSeen) VALUES (?, ?)
+                 ON CONFLICT(Source) DO UPDATE SET LastSeen = CASE 
+                    WHEN ? > LastSeen THEN ? 
+                    ELSE LastSeen 
+                 END`;
+        params = [source, timestamp, timestamp, timestamp];
+    } else {
+        // Manual heartbeat uses current server time
+        query = `INSERT INTO SourceStatus (Source, LastSeen) VALUES (?, CURRENT_TIMESTAMP)
+                 ON CONFLICT(Source) DO UPDATE SET LastSeen = CURRENT_TIMESTAMP`;
+        params = [source];
+    }
+
+    const stmt = db.prepare(query);
+    stmt.run(...params, (err) => {
+        if (err) console.error('Error updating heartbeat for ' + source + ':', err.message);
+    });
+    stmt.finalize();
+}
 
 /**
  * Settings / Cycle Time Endpoints
@@ -151,8 +192,12 @@ app.get('/api/quality', (req, res) => {
     let query = `SELECT * FROM QualityData`;
     const params = [];
     if (from && to) {
-        query += ` WHERE date(LocalTimestamp) BETWEEN ? AND ? `;
-        params.push(from, to);
+        if (from.includes('T') || from.includes(':')) {
+            query += ` WHERE datetime(LocalTimestamp) BETWEEN ? AND ? `;
+        } else {
+            query += ` WHERE date(LocalTimestamp) BETWEEN ? AND ? `;
+        }
+        params.push(from.replace('T', ' '), to.replace('T', ' '));
     }
     query += ` ORDER BY LocalTimestamp DESC`;
     db.all(query, params, (err, rows) => {
@@ -164,19 +209,37 @@ app.get('/api/quality', (req, res) => {
 app.post('/api/quality', (req, res) => {
     const { LocalTimestamp, Machine, ProductType, BadCount } = req.body;
     const stmt = db.prepare(`INSERT INTO QualityData (LocalTimestamp, Machine, ProductType, BadCount) VALUES (?, ?, ?, ?)`);
-    stmt.run(LocalTimestamp, Machine, ProductType, BadCount, function(err) {
+    stmt.run(LocalTimestamp, Machine, ProductType, BadCount, async function(err) {
         if (err) return res.status(500).json({ error: err.message });
+
+        // Real-time Sync: Update summary for this date/machine
+        try {
+            // Safely extract YYYY-MM-DD from various formats (T or space separator)
+            const prodDate = LocalTimestamp.slice(0, 10); 
+            await scheduler.updateMachineDay(db, prodDate, Machine);
+        } catch (syncErr) {
+            console.error('Error during real-time OEE sync after quality update:', syncErr.message);
+        }
+
         res.status(201).json({ id: this.lastID });
     });
     stmt.finalize();
 });
-
 app.put('/api/quality/:id', (req, res) => {
     const { LocalTimestamp, Machine, ProductType, BadCount } = req.body;
     const { id } = req.params;
     const stmt = db.prepare(`UPDATE QualityData SET LocalTimestamp = ?, Machine = ?, ProductType = ?, BadCount = ? WHERE id = ?`);
-    stmt.run(LocalTimestamp, Machine, ProductType, BadCount, id, function(err) {
+    stmt.run(LocalTimestamp, Machine, ProductType, BadCount, id, async function(err) {
         if (err) return res.status(500).json({ error: err.message });
+
+        // Real-time Sync
+        try {
+            const prodDate = LocalTimestamp.slice(0, 10);
+            await scheduler.updateMachineDay(db, prodDate, Machine);
+        } catch (syncErr) {
+            console.error('Error during real-time OEE sync after quality update:', syncErr.message);
+        }
+
         res.json({ message: 'Updated successfully' });
     });
     stmt.finalize();
@@ -184,19 +247,37 @@ app.put('/api/quality/:id', (req, res) => {
 
 app.delete('/api/quality/:id', (req, res) => {
     const { id } = req.params;
-    db.run(`DELETE FROM QualityData WHERE id = ?`, id, function(err) {
-        if (err) return res.status(500).json({ error: err.message });
-        res.json({ message: 'Deleted successfully' });
+    // We need to know the date/machine before deleting to sync
+    db.get(`SELECT LocalTimestamp, Machine FROM QualityData WHERE id = ?`, [id], (err, row) => {
+        if (row) {
+            const { LocalTimestamp, Machine } = row;
+            db.run(`DELETE FROM QualityData WHERE id = ?`, id, async function(err) {
+                if (err) return res.status(500).json({ error: err.message });
+
+                // Real-time Sync after deletion
+                try {
+                    const prodDate = LocalTimestamp.slice(0, 10);
+                    await scheduler.updateMachineDay(db, prodDate, Machine);
+                } catch (syncErr) {
+                    console.error('Error during real-time OEE sync after quality deletion:', syncErr.message);
+                }
+
+                res.json({ message: 'Deleted successfully' });
+            });
+        } else {
+            res.status(404).json({ error: 'Not found' });
+        }
     });
 });
-
 app.post('/api/data', (req, res) => {
     const { Timestamp, LocalTimestamp, TypeOfProduct, Qty, Source } = req.body;
     
     console.log('Received data:', req.body);
+    const sourceName = Source || 'CasePacker1';
+    updateHeartbeat(sourceName);
 
     const stmt = db.prepare(`INSERT INTO ReceivedData (SourceTimestamp, LocalTimestamp, TypeOfProduct, Qty, Source) VALUES (?, ?, ?, ?, ?)`);
-    stmt.run(Timestamp, LocalTimestamp, TypeOfProduct, Qty, Source || 'CasePacker1', function(err) {
+    stmt.run(Timestamp, LocalTimestamp, TypeOfProduct, Qty, sourceName, function(err) {
         if (err) {
             console.error('Error inserting data:', err.message);
             return res.status(500).json({ error: err.message });
@@ -214,8 +295,11 @@ app.post('/api/oee', (req, res) => {
         return res.status(400).json({ error: 'Missing required fields: Timestamp or StateCode' });
     }
 
+    const sourceName = Source || 'Unknown';
+    updateHeartbeat(sourceName, Timestamp);
+
     const stmtOEE = db.prepare(`INSERT INTO ReceivedOEE (SourceTimestamp, LocalTimestamp, StateCode, ReasonCode, Source) VALUES (?, ?, ?, ?, ?)`);
-    stmtOEE.run(Timestamp, LocalTimestamp, StateCode, ReasonCode, Source || 'Unknown', function(err) {
+    stmtOEE.run(Timestamp, LocalTimestamp, StateCode, ReasonCode, sourceName, function(err) {
         if (err) {
             console.error('Error inserting OEE data:', err.message);
             return res.status(500).json({ error: err.message });
@@ -223,6 +307,97 @@ app.post('/api/oee', (req, res) => {
         res.status(200).json({ message: 'OEE data received and stored', id: this.lastID });
     });
     stmtOEE.finalize();
+});
+
+// OEE bulk ingestion endpoint (handles up to 100 rows for better buffer handling)
+app.post('/api/oee/bulk', (req, res) => {
+    const data = req.body;
+
+    if (!Array.isArray(data)) {
+        return res.status(400).json({ error: 'Payload must be an array of OEE records' });
+    }
+
+    if (data.length === 0) {
+        return res.status(200).json({ message: 'Empty array received, nothing to store' });
+    }
+
+    // Control the limit to 100 rows at a time
+    const limit = 100;
+    const itemsToProcess = data.slice(0, limit);
+
+    // Filter out invalid records
+    const validItems = itemsToProcess.filter(item => item.Timestamp && (item.StateCode !== undefined && item.StateCode !== null));
+
+    if (validItems.length === 0) {
+        return res.status(400).json({ error: 'No valid OEE records found in payload (Timestamp and StateCode are required)' });
+    }
+
+    // Update heartbeat for all unique sources in this batch using their max timestamp
+    const sourceMaxTimestamps = {};
+    validItems.forEach(item => {
+        const s = item.Source || 'Unknown';
+        const t = item.Timestamp;
+        if (!sourceMaxTimestamps[s] || t > sourceMaxTimestamps[s]) {
+            sourceMaxTimestamps[s] = t;
+        }
+    });
+
+    Object.entries(sourceMaxTimestamps).forEach(([source, maxT]) => {
+        updateHeartbeat(source, maxT);
+    });
+
+    db.serialize(() => {
+        db.run("BEGIN TRANSACTION");
+        const stmtOEE = db.prepare(`INSERT INTO ReceivedOEE (SourceTimestamp, LocalTimestamp, StateCode, ReasonCode, Source) VALUES (?, ?, ?, ?, ?)`);
+        
+        validItems.forEach((item) => {
+            const { Timestamp, LocalTimestamp, StateCode, ReasonCode, Source } = item;
+            const sourceName = Source || 'Unknown';
+            stmtOEE.run(Timestamp, LocalTimestamp, StateCode, ReasonCode, sourceName);
+        });
+
+        stmtOEE.finalize();
+        db.run("COMMIT", (err) => {
+            if (err) {
+                console.error('Error committing bulk OEE transaction:', err.message);
+                // Try to rollback if commit fails
+                db.run("ROLLBACK");
+                return res.status(500).json({ error: 'Bulk insert failed: ' + err.message });
+            }
+            res.status(200).json({ 
+                message: `Bulk OEE data stored`, 
+                count: validItems.length,
+                totalReceived: data.length,
+                limit: limit
+            });
+        });
+    });
+});
+
+/**
+ * Status / Heartbeat Endpoints
+ */
+app.post('/api/heartbeat', (req, res) => {
+    const { Source } = req.body;
+    if (!Source) return res.status(400).json({ error: 'Source is required' });
+    
+    updateHeartbeat(Source);
+    res.json({ message: 'Heartbeat received' });
+});
+
+app.get('/api/status', (req, res) => {
+    // Returns seconds since last update for each source
+    const query = `
+        SELECT 
+            Source, 
+            LastSeen,
+            (strftime('%s', 'now') - strftime('%s', LastSeen)) as SecondsAgo
+        FROM SourceStatus
+    `;
+    db.all(query, [], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -243,8 +418,12 @@ app.get('/api/summary', (req, res) => {
     const params = [];
 
     if (from && to) {
-        query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
-        params.push(from, to);
+        if (from.includes('T') || from.includes(':')) {
+            query += ` AND datetime(SourceTimestamp, '+7 hours') BETWEEN ? AND ? `;
+        } else {
+            query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
+        }
+        params.push(from.replace('T', ' '), to.replace('T', ' '));
     }
 
     query += ` GROUP BY Source, TypeOfProduct, date(SourceTimestamp, '+1 hour') ORDER BY ProdDate DESC, Source ASC`;
@@ -291,7 +470,7 @@ app.get('/api/summary', (req, res) => {
             } else if (row.Source === 'CaseForming') {
                 const key = `${row.Source}-${row.TypeOfProduct}`;
                 if (!formingMap.has(key)) {
-                    formingMap.set(key, { source: row.Source, product: fullLabel, rowCount: 0 });
+                    formingMap.set(key, { source: row.Source, product: fullLabel, rowCount: 0, badCount: 0 });
                 }
                 const entry = formingMap.get(key);
                 entry.rowCount += row.RowCount;
@@ -315,7 +494,7 @@ app.get('/api/summary', (req, res) => {
 
                 const key = row.TypeOfProduct;
                 if (!palletizerMap.has(key)) {
-                    palletizerMap.set(key, { product: fullLabel, rowCount: 0, casesCount: 0 });
+                    palletizerMap.set(key, { product: fullLabel, rowCount: 0, casesCount: 0, ratio: casesPerPallet });
                 }
                 const entry = palletizerMap.get(key);
                 entry.rowCount += row.RowCount;
@@ -341,7 +520,39 @@ app.get('/api/summary', (req, res) => {
         summary.forming = Array.from(formingMap.values()).sort((a, b) => a.product.localeCompare(b.product));
         summary.closer.details = Array.from(closerMap.values()).sort((a, b) => a.product.localeCompare(b.product));
         summary.palletizer.details = Array.from(palletizerMap.values()).sort((a, b) => a.product.localeCompare(b.product));
-        res.json(summary);
+
+        // Fetch Quality Data for CaseForming (Bad Counts)
+        const qualityQuery = `
+            SELECT ProductType, SUM(BadCount) as TotalBad
+            FROM QualityData
+            WHERE Machine = 'CaseForming'
+            ${from && to ? (from.includes('T') || from.includes(':') ? 'AND datetime(LocalTimestamp) BETWEEN ? AND ?' : 'AND date(LocalTimestamp) BETWEEN ? AND ?') : ''}
+            GROUP BY ProductType
+        `;
+        const qParams = from && to ? [from.replace('T', ' '), to.replace('T', ' ')] : [];
+
+        db.all(qualityQuery, qParams, (qErr, qRows) => {
+            if (!qErr && qRows) {
+                qRows.forEach(qRow => {
+                    const label = getProductLabel(qRow.ProductType);
+                    const key = `CaseForming-${qRow.ProductType}`;
+                    if (formingMap.has(key)) {
+                        formingMap.get(key).badCount = qRow.TotalBad;
+                    } else {
+                        // In case there are only bad counts and no good counts
+                        formingMap.set(key, { 
+                            source: 'CaseForming', 
+                            product: label, 
+                            rowCount: 0, 
+                            badCount: qRow.TotalBad 
+                        });
+                    }
+                });
+                // Re-sync forming array from updated map
+                summary.forming = Array.from(formingMap.values()).sort((a, b) => a.product.localeCompare(b.product));
+            }
+            res.json(summary);
+        });
     });
 });
 
@@ -353,8 +564,12 @@ app.get('/api/raw', (req, res) => {
 
     if (from && to) {
         // Raw filter using the same Production Day logic for consistency
-        query += ` WHERE date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
-        params.push(from, to);
+        if (from.includes('T') || from.includes(':')) {
+            query += ` WHERE datetime(SourceTimestamp, '+7 hours') BETWEEN ? AND ? `;
+        } else {
+            query += ` WHERE date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
+        }
+        params.push(from.replace('T', ' '), to.replace('T', ' '));
     }
     query += ` ORDER BY SourceTimestamp DESC LIMIT 100`;
 
@@ -385,8 +600,12 @@ app.get('/api/chart', (req, res) => {
     const params = [];
 
     if (from && to) {
-        query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
-        params.push(from, to);
+        if (from.includes('T') || from.includes(':')) {
+            query += ` AND datetime(SourceTimestamp, '+7 hours') BETWEEN ? AND ? `;
+        } else {
+            query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
+        }
+        params.push(from.replace('T', ' '), to.replace('T', ' '));
     }
 
     query += ` GROUP BY ProdDate, Source, TypeOfProduct ORDER BY ProdDate ASC, Source ASC`;
@@ -440,8 +659,12 @@ app.get('/api/chart-forming', (req, res) => {
     const params = [];
 
     if (from && to) {
-        query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
-        params.push(from, to);
+        if (from.includes('T') || from.includes(':')) {
+            query += ` AND datetime(SourceTimestamp, '+7 hours') BETWEEN ? AND ? `;
+        } else {
+            query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
+        }
+        params.push(from.replace('T', ' '), to.replace('T', ' '));
     }
 
     query += ` GROUP BY ProdDate, Source, TypeOfProduct ORDER BY ProdDate ASC, Source ASC`;
@@ -491,8 +714,12 @@ app.get('/api/chart-closer', (req, res) => {
     const params = [];
 
     if (from && to) {
-        query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
-        params.push(from, to);
+        if (from.includes('T') || from.includes(':')) {
+            query += ` AND datetime(SourceTimestamp, '+7 hours') BETWEEN ? AND ? `;
+        } else {
+            query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
+        }
+        params.push(from.replace('T', ' '), to.replace('T', ' '));
     }
 
     query += ` GROUP BY ProdDate, TypeOfProduct ORDER BY ProdDate ASC`;
@@ -565,8 +792,12 @@ app.get('/api/chart-palletizer', (req, res) => {
     const params = [];
 
     if (from && to) {
-        query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
-        params.push(from, to);
+        if (from.includes('T') || from.includes(':')) {
+            query += ` AND datetime(SourceTimestamp, '+7 hours') BETWEEN ? AND ? `;
+        } else {
+            query += ` AND date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
+        }
+        params.push(from.replace('T', ' '), to.replace('T', ' '));
     }
 
     query += ` GROUP BY ProdDate, TypeOfProduct ORDER BY ProdDate ASC`;
@@ -739,6 +970,190 @@ app.get('/api/oee', (req, res) => {
     }
 });
 
+app.get('/api/kpi/daily-month', (req, res) => {
+    const { source, year, month } = req.query;
+    if (!source || !year || !month) return res.status(400).json({ error: 'Missing source, year, or month' });
+
+    const query = `
+        SELECT 
+            ProdDate as Date,
+            Availability, Performance, Quality, Oee,
+            TechUptime, FaultTime, FaultCount
+        FROM DailyKpiSummary
+        WHERE Machine = ? AND strftime('%Y', ProdDate) = ? AND strftime('%m', ProdDate) = ?
+        ORDER BY Date ASC
+    `;
+
+    db.all(query, [source, year, month.padStart(2, '0')], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.get('/api/kpi/yearly-heatmap', (req, res) => {
+    const { source, year } = req.query;
+    if (!source || !year) return res.status(400).json({ error: 'Missing source or year' });
+
+    const query = `
+        SELECT ProdDate as Date, Oee 
+        FROM DailyKpiSummary 
+        WHERE Machine = ? AND strftime('%Y', ProdDate) = ?
+        ORDER BY Date ASC
+    `;
+    db.all(query, [source, year], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows);
+    });
+});
+
+app.get('/api/kpi/monthly', (req, res) => {
+    const { source, year } = req.query;
+    if (!source || !year) return res.status(400).json({ error: 'Missing source or year' });
+
+    const query = `
+        SELECT 
+            strftime('%m', ProdDate) as Month,
+            AVG(Oee) as AvgOee,
+            AVG(Availability) as AvgAvail,
+            AVG(Performance) as AvgPerf,
+            AVG(Quality) as AvgQual,
+            SUM(TechUptime) / (NULLIF(SUM(FaultCount), 0)) / 60 as MtbfMin,
+            SUM(FaultTime) / (NULLIF(SUM(FaultCount), 0)) / 60 as MttrMin,
+            SUM(TotalCount) as TotalQty
+        FROM DailyKpiSummary
+        WHERE Machine = ? AND strftime('%Y', ProdDate) = ?
+        GROUP BY Month
+        ORDER BY Month ASC
+    `;
+
+    db.all(query, [source, year], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        // Calculate YTD
+        const ytdQuery = `
+            SELECT 
+                AVG(Oee) as Oee,
+                AVG(Availability) as Avail,
+                AVG(Performance) as Perf,
+                AVG(Quality) as Qual,
+                SUM(TechUptime) / (NULLIF(SUM(FaultCount), 0)) / 60 as Mtbf,
+                SUM(TotalCount) as TotalQty
+            FROM DailyKpiSummary
+            WHERE Machine = ? AND strftime('%Y', ProdDate) = ?
+        `;
+        
+        db.get(ytdQuery, [source, year], (err, ytd) => {
+            res.json({ monthly: rows, ytd: ytd });
+        });
+    });
+});
+
+app.get('/api/losses/trends', (req, res) => {
+    const { source, days, month, year } = req.query;
+    if (!source) return res.status(400).json({ error: 'Missing source' });
+
+    let query;
+    let params = [source];
+
+    if (month && year) {
+        query = `
+            SELECT TopLossesJson 
+            FROM DailyKpiSummary 
+            WHERE Machine = ? AND strftime('%Y', ProdDate) = ? AND strftime('%m', ProdDate) = ?
+        `;
+        params.push(year, month.padStart(2, '0'));
+    } else {
+        query = `
+            SELECT TopLossesJson 
+            FROM DailyKpiSummary 
+            WHERE Machine = ? 
+            ORDER BY ProdDate DESC 
+            LIMIT ?
+        `;
+        params.push(parseInt(days || 30));
+    }
+
+    db.all(query, params, (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        
+        const globalLosses = {};
+        rows.forEach(row => {
+            if (row.TopLossesJson) {
+                try {
+                    const daily = JSON.parse(row.TopLossesJson);
+                    daily.forEach(item => {
+                        globalLosses[item.reason] = (globalLosses[item.reason] || 0) + item.duration;
+                    });
+                } catch (e) { /* skip malformed */ }
+            }
+        });
+
+        const sorted = Object.keys(globalLosses).map(reason => ({
+            reason,
+            duration: globalLosses[reason]
+        })).sort((a, b) => b.duration - a.duration).slice(0, 10);
+
+        res.json(sorted);
+    });
+});
+
+app.get('/api/kpi/trends', (req, res) => {
+    const { source, days = 30 } = req.query;
+    if (!source) return res.status(400).json({ error: 'Missing source' });
+
+    const query = `
+        SELECT ProdDate as Date, Availability, Performance, Quality, Oee 
+        FROM DailyKpiSummary 
+        WHERE Machine = ? 
+        ORDER BY Date DESC 
+        LIMIT ?
+    `;
+    db.all(query, [source, parseInt(days)], (err, rows) => {
+        if (err) return res.status(500).json({ error: err.message });
+        res.json(rows.reverse()); // Chronological order
+    });
+});
+
+app.get('/api/reliability/trends', (req, res) => {
+    const { source, days, month, year } = req.query;
+    if (!source) return res.status(400).json({ error: 'Missing source' });
+
+    if (month && year) {
+        // Specific Month Mode
+        const query = `
+            SELECT 
+                ProdDate as Date,
+                (TechUptime / NULLIF(FaultCount, 0)) as RollingMtbf,
+                (FaultTime / NULLIF(FaultCount, 0)) as RollingMttr
+            FROM DailyKpiSummary
+            WHERE Machine = ? AND strftime('%Y', ProdDate) = ? AND strftime('%m', ProdDate) = ?
+            ORDER BY Date ASC
+        `;
+        db.all(query, [source, year, month.padStart(2, '0')], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows);
+        });
+    } else {
+        // Rolling Window Mode
+        const query = `
+            SELECT Date, RollingMtbf, RollingMttr 
+            FROM ReliabilityHistory 
+            WHERE Machine = ? 
+            ORDER BY Date DESC 
+            LIMIT ?
+        `;
+        db.all(query, [source, parseInt(days || 30)], (err, rows) => {
+            if (err) return res.status(500).json({ error: err.message });
+            res.json(rows.reverse()); // Chronological order
+        });
+    }
+});
+
 app.listen(port, () => {
     console.log(`Target server listening at http://localhost:${port}`);
+    
+    // Start background scheduler: Run every 30 minutes
+    // setInterval(scheduler.runDailyUpdate, 30 * 60 * 1000);
+    // Initial run on startup
+    // scheduler.runDailyUpdate();
 });

@@ -11,6 +11,7 @@
             --card: #ffffff;
             --text: #333333;
             --error: #a4262c;
+            --success: #107c10;
         }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -19,35 +20,170 @@
             margin: 0;
             padding: 20px;
         }
-        .container { max-width: 1000px; margin: 0 auto; }
+        .container { max-width: 1850px; margin: 0 auto; }
         header { 
             background: white;
-            padding: 15px 25px;
+            padding: 12px 25px;
             border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
             border-bottom: 4px solid var(--primary);
             margin-bottom: 25px;
             display: flex;
             justify-content: space-between;
             align-items: center;
         }
-        .company-name { font-size: 1rem; font-weight: 800; color: #444; text-transform: uppercase; }
+        .brand-group { display: flex; align-items: center; gap: 20px; flex: 1; }
+        .logo { height: 40px; width: auto; }
+        .brand-text { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+        .company-name { font-size: 0.9rem; font-weight: 800; color: #333; text-transform: uppercase; line-height: 1; }
+        .dashboard-title { font-weight: 600; color: #888; font-size: 0.75rem; margin: 0; padding: 0; border: none; text-transform: uppercase; letter-spacing: 0.5px; }
         
         .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
         h2 { margin-top: 0; font-size: 1.1rem; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px; }
         
-        form { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 15px; align-items: flex-end; }
-        .form-group { display: flex; flex-direction: column; gap: 5px; }
-        label { font-size: 0.8rem; font-weight: 600; color: #666; }
+        .filters { 
+            display: flex; 
+            gap: 20px; 
+            align-items: center; 
+            background: white; 
+            padding: 25px 20px 12px 20px; 
+            border-radius: 8px; 
+            border: 1px solid #eee;
+            width: 100%;
+            box-sizing: border-box;
+            position: relative;
+            flex-wrap: wrap;
+        }
+        @media (max-width: 768px) {
+            .filters { padding-top: 45px; flex-direction: column; align-items: stretch; gap: 15px; }
+        }
+        .filter-group { display: flex; align-items: center; gap: 10px; }
+        label { font-size: 0.8rem; font-weight: 600; color: #666; white-space: nowrap; }
         input, select, button { padding: 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9rem; }
-        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; }
-        button.delete { background: var(--error); }
+        button { background: var(--primary); color: white; border: none; cursor: pointer; font-weight: 600; padding: 10px 20px; }
+        button:hover { background: #004494; }
+
+        .status-box { 
+            position: absolute; 
+            top: 8px; 
+            right: 20px; 
+            font-size: 0.75rem; 
+            color: #666; 
+            font-weight: 600;
+        }
+
+        .card { background: var(--card); padding: 20px; border-radius: 4px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
+        button.add-btn:hover { background: #004494; }
 
         table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 0.9rem; }
         th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
         th { background: #faf9f8; color: #666; }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 450px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            position: relative;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .modal-header h2 { margin: 0; border: none; font-size: 1.2rem; }
+        .close-modal { font-size: 24px; font-weight: bold; cursor: pointer; color: #888; border: none; background: none; padding: 0 5px; }
+        .modal-form { display: flex; flex-direction: column; gap: 15px; }
+        .modal-form .filter-group { width: 100%; }
+        .modal-form input, .modal-form select { width: 100%; box-sizing: border-box; }
         
-        .nav-link { text-decoration: none; color: var(--primary); font-weight: 600; font-size: 0.9rem; }
+        .nav-link { 
+            text-decoration: none; 
+            color: #666; 
+            font-weight: 600; 
+            font-size: 0.9rem; 
+            transition: color 0.2s;
+        }
+        .nav-link:hover { color: var(--primary); }
+
+        .nav-menu {
+            display: flex;
+            gap: 25px;
+            align-items: center;
+        }
+
+        /* Mobile Menu Styles */
+        .menu-toggle {
+            display: none;
+            flex-direction: column;
+            gap: 4px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            z-index: 10;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .menu-toggle span {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background-color: #333;
+            border-radius: 1px;
+        }
+
+        @media (max-width: 1000px) {
+            header { 
+                flex-wrap: wrap; 
+                padding: 15px 20px; 
+                justify-content: space-between;
+            }
+            .menu-toggle { display: flex; }
+            .nav-menu { 
+                display: none; 
+                flex-direction: column; 
+                width: 100%; 
+                margin-top: 15px; 
+                padding-top: 15px; 
+                border-top: 1px solid #f0f0f0; 
+                gap: 5px;
+                align-items: flex-start;
+            }
+            .nav-menu.active { display: flex; }
+            .nav-link { 
+                padding: 12px 0; 
+                width: 100%; 
+                color: #444;
+            }
+            .status-box { position: static; width: 100%; border-top: 1px solid #f0f0f0; margin-top: 10px; padding-top: 10px; }
+        }
+
+        @media (max-width: 600px) {
+            .logo { height: 30px; }
+            .brand-group { gap: 12px; }
+            .company-name { font-size: 0.75rem; }
+            .dashboard-title { font-size: 0.65rem; }
+            header { padding: 10px 15px; }
+        }
 
         .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin-top: 20px; padding: 10px; }
         .pagination button { background: #eee; color: #333; padding: 5px 15px; border-radius: 4px; border: 1px solid #ccc; cursor: pointer; }
@@ -58,39 +194,99 @@
 <body>
     <div class="container">
         <header>
-            <div class="company-name">Thantawan Industry Vietnam</div>
-            <a href="oee.html" class="nav-link">← Back to OEE Dashboard</a>
+            <div class="brand-group">
+                <img src="https://kinetix.co.th/wp-content/uploads/2023/02/cropped-Kinetix_Web_Logo2-1.png" alt="Kinetix Logo" class="logo">
+                <div class="brand-text">
+                    <div class="company-name">Thantawan Industry Vietnam</div>
+                    <div class="dashboard-title">Quality Management</div>
+                </div>
+            </div>
+            <button class="menu-toggle" onclick="toggleMenu()" aria-label="Toggle navigation">
+                <span></span>
+                <span></span>
+                <span></span>
+            </button>
+            <div class="nav-menu" id="navMenu">
+                <a href="index.html" class="nav-link">Production Dashboard</a>
+                <a href="oee.html" class="nav-link">OEE Dashboard</a>
+                <a href="reliability.html" class="nav-link">Reliability Trends</a>
+                <a href="quality.html" class="nav-link">Quality Data</a>
+                <a href="settings.html" class="nav-link">Settings</a>
+            </div>
         </header>
 
-        <div class="card">
-            <h2>Record Bad Count (Quality Data)</h2>
-            <form id="qualityForm">
-                <div class="form-group">
-                    <label>Date/Time</label>
-                    <input type="datetime-local" id="qTimestamp" required>
+        <script>
+            function toggleMenu() {
+                const navMenu = document.getElementById('navMenu');
+                navMenu.classList.toggle('active');
+            }
+        </script>
+
+        <div class="filters" style="margin-bottom: 25px;">
+            <div class="status-box">
+                <span id="lastUpdate">Last Event: --:--:--</span>
+            </div>
+            <div class="filter-group">
+                <label>Machine</label>
+                <select id="filterMachine" onchange="renderTable()">
+                    <option value="ALL">All Machines</option>
+                    <option value="CasePacker1_A">Case Packer 1 - Side A</option>
+                    <option value="CasePacker1_B">Case Packer 1 - Side B</option>
+                    <option value="CasePacker2_A">Case Packer 2 - Side A</option>
+                    <option value="CasePacker2_B">Case Packer 2 - Side B</option>
+                    <option value="CasePacker3_A">Case Packer 3 - Side A</option>
+                    <option value="CasePacker3_B">Case Packer 3 - Side B</option>
+                    <option value="CaseForming">Case Forming</option>
+                    <option value="Palletizer">Palletizer</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>Date</label>
+                <input type="date" id="filterDate" onchange="renderTable()">
+            </div>
+            <button onclick="renderTable()">Refresh</button>
+            <div style="margin-left: auto;">
+                <button class="add-btn" onclick="openModal()">+ ADD RECORD</button>
+            </div>
+        </div>
+
+        <!-- Add Record Modal -->
+        <div id="addModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Record Bad Count</h2>
+                    <button class="close-modal" onclick="closeModal()">&times;</button>
                 </div>
-                <div class="form-group">
-                    <label>Machine</label>
-                    <select id="qMachine" required onchange="updateProductTypes()">
-                        <option value="CasePacker1_A">Case Packer 1 - Side A</option>
-                        <option value="CasePacker1_B">Case Packer 1 - Side B</option>
-                        <option value="CasePacker2_A">Case Packer 2 - Side A</option>
-                        <option value="CasePacker2_B">Case Packer 2 - Side B</option>
-                        <option value="CasePacker3_A">Case Packer 3 - Side A</option>
-                        <option value="CasePacker3_B">Case Packer 3 - Side B</option>
-                        <option value="CaseForming">Case Forming</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Product Type</label>
-                    <select id="qType" required></select>
-                </div>
-                <div class="form-group">
-                    <label>Bad Count (Cases)</label>
-                    <input type="number" id="qBadCount" min="0" required value="0">
-                </div>
-                <button type="submit" id="submitBtn">Save Record</button>
-            </form>
+                <form id="qualityForm" class="modal-form">
+                    <div class="filter-group">
+                        <label>Date/Time</label>
+                        <input type="datetime-local" id="qTimestamp" required>
+                    </div>
+                    <div class="filter-group">
+                        <label>Machine</label>
+                        <select id="qMachine" required onchange="updateProductTypes()">
+                            <option value="">Select Machine...</option>
+                            <option value="CasePacker1_A">Case Packer 1 - Side A</option>
+                            <option value="CasePacker1_B">Case Packer 1 - Side B</option>
+                            <option value="CasePacker2_A">Case Packer 2 - Side A</option>
+                            <option value="CasePacker2_B">Case Packer 2 - Side B</option>
+                            <option value="CasePacker3_A">Case Packer 3 - Side A</option>
+                            <option value="CasePacker3_B">Case Packer 3 - Side B</option>
+                            <option value="CaseForming">Case Forming</option>
+                            <option value="Palletizer">Palletizer</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Product Type</label>
+                        <select id="qType" required></select>
+                    </div>
+                    <div class="filter-group">
+                        <label>Bad Count (Cases)</label>
+                        <input type="number" id="qBadCount" min="0" required value="0">
+                    </div>
+                    <button type="submit" id="submitBtn">Save Record</button>
+                </form>
+            </div>
         </div>
 
         <div class="card">
@@ -123,7 +319,8 @@
             'CasePacker2_B': ['4'],
             'CasePacker3_A': ['5'],
             'CasePacker3_B': ['6'],
-            'CaseForming': ['10', '20', '30']
+            'CaseForming': ['10', '20', '30'],
+            'Palletizer': ['1', '2', '3', '4', '5', '6']
         };
 
         const typeLabels = {
@@ -137,22 +334,42 @@
         let currentPage = 1;
         const recordsPerPage = 20;
 
+        // Modal Logic
+        function openModal() {
+            document.getElementById('addModal').classList.add('active');
+            const now = new Date();
+            now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+            document.getElementById('qTimestamp').value = now.toISOString().slice(0, 16);
+        }
+
+        function closeModal() {
+            document.getElementById('addModal').classList.remove('active');
+        }
+
+        // Close modal when clicking outside content
+        window.onclick = function(event) {
+            const modal = document.getElementById('addModal');
+            if (event.target == modal) closeModal();
+        }
+
         function updateProductTypes() {
             const machine = document.getElementById('qMachine').value;
             const typeSelect = document.getElementById('qType');
             typeSelect.innerHTML = '';
-            machineTypes[machine].forEach(t => {
-                const opt = document.createElement('option');
-                opt.value = t;
-                opt.textContent = typeLabels[t] || ('Type ' + t);
-                typeSelect.appendChild(opt);
-            });
+            
+            if (machine && machineTypes[machine]) {
+                machineTypes[machine].forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t;
+                    opt.textContent = typeLabels[t] || ('Type ' + t);
+                    typeSelect.appendChild(opt);
+                });
+            }
         }
 
         // Initialize form
-        const now = new Date();
-        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-        document.getElementById('qTimestamp').value = now.toISOString().slice(0, 16);
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('filterDate').value = today;
         updateProductTypes();
 
         // Load Data
@@ -166,13 +383,58 @@
             }
         }
 
+        async function updateMachineStatus() {
+            const source = document.getElementById('filterMachine').value;
+            const el = document.getElementById('lastUpdate');
+            if (!source || !el) return;
+
+            try {
+                const res = await fetch('/api/status');
+                const statuses = await res.json();
+                
+                let relevant;
+                if (source === 'ALL') {
+                    relevant = statuses;
+                } else {
+                    const baseName = source.split('_')[0]; 
+                    relevant = statuses.filter(s => s.Source === source || s.Source === baseName);
+                }
+                
+                if (relevant.length === 0) {
+                    el.innerText = 'Last Event: No Recent Events';
+                    el.style.color = '#888';
+                    return;
+                }
+
+                relevant.sort((a, b) => a.SecondsAgo - b.SecondsAgo);
+                const s = relevant[0];
+
+                const now = new Date();
+                const lastDate = new Date(now.getTime() - (s.SecondsAgo * 1000));
+                const timeStr = lastDate.toLocaleTimeString();
+                
+                el.innerText = 'Last Event: ' + timeStr;
+                el.style.color = s.SecondsAgo > 600 ? '#d73a49' : '#888';
+            } catch (e) { console.error('Status poll failed', e); }
+        }
+
         function renderTable() {
+            updateMachineStatus();
             const tbody = document.querySelector('#qualityTable tbody');
             tbody.innerHTML = '';
 
+            const machineFilter = document.getElementById('filterMachine').value;
+            const dateFilter = document.getElementById('filterDate').value;
+
+            const filteredData = allQualityData.filter(row => {
+                const matchMachine = machineFilter === 'ALL' || row.Machine === machineFilter;
+                const matchDate = !dateFilter || row.LocalTimestamp.startsWith(dateFilter);
+                return matchMachine && matchDate;
+            });
+
             const startIndex = (currentPage - 1) * recordsPerPage;
             const endIndex = startIndex + recordsPerPage;
-            const paginatedData = allQualityData.slice(startIndex, endIndex);
+            const paginatedData = filteredData.slice(startIndex, endIndex);
 
             paginatedData.forEach(row => {
                 const tr = document.createElement('tr');
@@ -190,7 +452,7 @@
             });
 
             // Update Pagination Controls
-            const totalPages = Math.ceil(allQualityData.length / recordsPerPage) || 1;
+            const totalPages = Math.ceil(filteredData.length / recordsPerPage) || 1;
             document.getElementById('pageInfo').innerText = `Page ${currentPage} of ${totalPages}`;
             document.getElementById('prevPage').disabled = currentPage === 1;
             document.getElementById('nextPage').disabled = currentPage >= totalPages;
@@ -218,7 +480,8 @@
             });
 
             document.getElementById('qBadCount').value = 0;
-            currentPage = 1; // Reset to first page
+            currentPage = 1; 
+            closeModal();
             loadData();
         };
 
@@ -230,6 +493,7 @@
         }
 
         loadData();
+        setInterval(updateMachineStatus, 10000);
     </script>
 </body>
 </html>
