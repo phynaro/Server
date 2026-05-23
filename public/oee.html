@@ -49,6 +49,11 @@
         .scroll-lg { max-height: 500px; overflow-y: auto; }
         #timelineTable { font-size: 0.9rem; }
         #timelineTable tbody tr:nth-child(odd) { background: #fafafa; }
+        .unit-toggle { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; }
+        .unit-toggle span { color: #ccc; }
+        .unit-opt { text-decoration: none; color: #888; font-weight: 600; }
+        .unit-opt:hover { color: #333; }
+        .unit-opt.active { color: #111; border-bottom: 2px solid #111; }
     </style>
 </head>
 <body>
@@ -109,8 +114,8 @@
                     <div class="info-icon">i</div>
                     <span class="tooltiptext">
                         <b>Availability (A)</b><br>
-                        Formula: <i>Running Time / (Total Time - Planned Stops)</i><br><br>
-                        Measures pure production time. Only State 1 (Running) is considered "Up". Everything else is downtime.
+                        Formula: <i>(Running + Starved + Blocked) / (Total Time - Planned Stops)</i><br><br>
+                        Machine is Available when Running, Starved, or Blocked — these are line-constraint states where the machine is mechanically ready. Downtime is Faulted + Idle/Wait Operator (both require intervention to restore production).
                     </span>
                 </div>
                 <div class="kpi-label">Availability (A)</div>
@@ -122,8 +127,8 @@
                     <div class="info-icon">i</div>
                     <span class="tooltiptext">
                         <b>Performance (P)</b><br>
-                        Formula: <i>(Ideal Cycle Time × Total Produced) / Actual Running Time</i><br><br>
-                        Measures machine speed capability. It only looks at the time the machine was strictly in State 1 (Running).
+                        Formula: <i>(Ideal Cycle Time × Total Produced) / (Running + Starved + Blocked)</i><br><br>
+                        Measures speed efficiency against available machine time. Starved and Blocked are line-constraint minor stops — the machine was available but not cycling, reducing Performance.
                     </span>
                 </div>
                 <div class="kpi-label">Performance (P)</div>
@@ -161,8 +166,8 @@
                     <div class="info-icon">i</div>
                     <span class="tooltiptext">
                         <b>Technical Availability</b><br>
-                        Formula: <i>(Running + Starved + Blocked) / (Total Time - Planned Stops)</i><br><br>
-                        Focuses on machine reliability by ignoring external bottlenecks (missing infeed or full outfeed).
+                        Formula: <i>(Running + Starved + Blocked + Idle) / (Total Time - Planned Stops)</i><br><br>
+                        Measures pure mechanical reliability — only Faulted (State 5) reduces this. Idle/Wait Operator is excluded since it reflects operator response speed, not machine health. The gap between TA and OA shows operator-intervention loss.
                     </span>
                 </div>
                 <div class="kpi-label">Technical Availability</div>
@@ -188,15 +193,27 @@
                     <span class="tooltiptext">
                         <b>MTTR</b><br>
                         Formula: <i>Total Fault Duration / Number of Faults</i><br><br>
-                        Mean Time To Repair. Measures the average response and repair speed of the maintenance team.
+                        Avg Fault Recovery Time. Measures maintenance team response speed for mechanical failures (State 5 only). Operator-intervention loss (State 4) is visible as the gap between Technical and Operational Availability.
                     </span>
                 </div>
                 <div class="kpi-label">MTTR</div>
                 <div class="kpi-value" id="kpiMttr">—</div>
-                <div class="kpi-sub">Mean Time To Repair</div>
+                <div class="kpi-sub">Avg Fault Recovery Time</div>
             </div>
         </div>
         <div class="status-line" id="oeeDataStatus"></div>
+
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <h2 style="margin: 0; border: none;">OEE Loss Waterfall</h2>
+                <div class="unit-toggle" id="wfUnit">
+                    <a href="#" class="unit-opt active" data-unit="pct" onclick="setWaterfallUnit('pct'); return false;">%</a>
+                    <span>·</span>
+                    <a href="#" class="unit-opt" data-unit="min" onclick="setWaterfallUnit('min'); return false;">min</a>
+                </div>
+            </div>
+            <div class="chart-sm"><canvas id="waterfallChart"></canvas></div>
+        </div>
 
         <div class="station-grid">
             <div class="card">
