@@ -239,6 +239,50 @@ function renderStateChart(summary) {
     });
 }
 
+const paretoLineOnTopPlugin = {
+    id: 'paretoLineOnTop',
+    afterDatasetsDraw(chart) {
+        const ctx = chart.ctx;
+        const yScale = chart.scales.y;
+        const xScale = chart.scales.cumPct;
+        if (!yScale || !xScale) return;
+
+        chart.data.datasets.forEach((ds) => {
+            if (ds.type !== 'line' || !ds._paretoOverlay) return;
+            const color = ds.borderColor || '#000';
+            const width = ds.borderWidth || 2;
+            const radius = ds.pointRadius || 0;
+            const dash = ds.borderDash || [];
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = width;
+            ctx.setLineDash(dash);
+            ctx.beginPath();
+            ds.data.forEach((val, i) => {
+                const x = xScale.getPixelForValue(val);
+                const y = yScale.getPixelForValue(i);
+                if (i === 0) ctx.moveTo(x, y);
+                else ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            if (radius > 0) {
+                ctx.fillStyle = ds.pointBackgroundColor || color;
+                ds.data.forEach((val, i) => {
+                    const x = xScale.getPixelForValue(val);
+                    const y = yScale.getPixelForValue(i);
+                    ctx.beginPath();
+                    ctx.arc(x, y, radius, 0, Math.PI * 2);
+                    ctx.fill();
+                });
+            }
+            ctx.restore();
+        });
+    }
+};
+
 function renderParetoChart(losses) {
     const ctx = document.getElementById('paretoChart').getContext('2d');
     if (paretoChart) paretoChart.destroy();
@@ -272,7 +316,10 @@ function renderParetoChart(losses) {
                     pointBackgroundColor: '#0056b3',
                     fill: false,
                     tension: 0,
-                    xAxisID: 'cumPct'
+                    xAxisID: 'cumPct',
+                    showLine: false,
+                    pointStyle: false,
+                    _paretoOverlay: true
                 },
                 {
                     type: 'line',
@@ -283,10 +330,13 @@ function renderParetoChart(losses) {
                     borderDash: [5, 5],
                     pointRadius: 0,
                     fill: false,
-                    xAxisID: 'cumPct'
+                    xAxisID: 'cumPct',
+                    showLine: false,
+                    _paretoOverlay: true
                 }
             ]
         },
+        plugins: [paretoLineOnTopPlugin],
         options: {
             indexAxis: 'y',
             maintainAspectRatio: false,

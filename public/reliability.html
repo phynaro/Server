@@ -408,19 +408,139 @@
             });
         }
 
+        const paretoLineOnTopPlugin = {
+            id: 'paretoLineOnTop',
+            afterDatasetsDraw(chart) {
+                const ctx = chart.ctx;
+                const yScale = chart.scales.y;
+                const xScale = chart.scales.cumPct;
+                if (!yScale || !xScale) return;
+
+                chart.data.datasets.forEach((ds) => {
+                    if (ds.type !== 'line' || !ds._paretoOverlay) return;
+                    const color = ds.borderColor || '#000';
+                    const width = ds.borderWidth || 2;
+                    const radius = ds.pointRadius || 0;
+                    const dash = ds.borderDash || [];
+
+                    ctx.save();
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = width;
+                    ctx.setLineDash(dash);
+                    ctx.beginPath();
+                    ds.data.forEach((val, i) => {
+                        const x = xScale.getPixelForValue(val);
+                        const y = yScale.getPixelForValue(i);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    });
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+
+                    if (radius > 0) {
+                        ctx.fillStyle = ds.pointBackgroundColor || color;
+                        ds.data.forEach((val, i) => {
+                            const x = xScale.getPixelForValue(val);
+                            const y = yScale.getPixelForValue(i);
+                            ctx.beginPath();
+                            ctx.arc(x, y, radius, 0, Math.PI * 2);
+                            ctx.fill();
+                        });
+                    }
+                    ctx.restore();
+                });
+            }
+        };
+
         function renderLossChart(data) {
             const ctx = document.getElementById('lossChart').getContext('2d');
             if (lossChart) lossChart.destroy();
+
+            const total = data.reduce((sum, d) => sum + d.duration, 0);
+            let cum = 0;
+            const cumulative = data.map(d => {
+                cum += d.duration;
+                return total > 0 ? parseFloat((cum / total * 100).toFixed(1)) : 0;
+            });
+
             lossChart = new Chart(ctx, {
                 type: 'bar',
                 data: {
                     labels: data.map(d => d.reason),
-                    datasets: [{ data: data.map(d => (d.duration / 60).toFixed(1)), backgroundColor: '#a4262c' }]
+                    datasets: [
+                        {
+                            label: 'Loss Duration (min)',
+                            data: data.map(d => (d.duration / 60).toFixed(1)),
+                            backgroundColor: '#a4262c',
+                            borderRadius: 4,
+                            xAxisID: 'x'
+                        },
+                        {
+                            type: 'line',
+                            label: 'Cumulative %',
+                            data: cumulative,
+                            borderColor: '#0056b3',
+                            borderWidth: 2,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#0056b3',
+                            fill: false,
+                            tension: 0,
+                            xAxisID: 'cumPct',
+                            showLine: false,
+                            pointStyle: false,
+                            _paretoOverlay: true
+                        },
+                        {
+                            type: 'line',
+                            label: '80% target',
+                            data: data.map(() => 80),
+                            borderColor: '#888',
+                            borderWidth: 1,
+                            borderDash: [5, 5],
+                            pointRadius: 0,
+                            fill: false,
+                            xAxisID: 'cumPct',
+                            showLine: false,
+                            _paretoOverlay: true
+                        }
+                    ]
                 },
+                plugins: [paretoLineOnTopPlugin],
                 options: {
                     indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { x: { beginAtZero: true } }
+                    plugins: {
+                        legend: {
+                            display: true,
+                            labels: {
+                                filter: item => item.text !== '80% target',
+                                boxWidth: 12,
+                                font: { size: 11 }
+                            }
+                        },
+                        tooltip: {
+                            enabled: true,
+                            callbacks: {
+                                label: (ctx) => {
+                                    if (ctx.dataset.label === 'Loss Duration (min)') return `Duration: ${ctx.raw} min`;
+                                    if (ctx.dataset.label === 'Cumulative %') return `Cumulative: ${ctx.raw}%`;
+                                    return null;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: { beginAtZero: true, position: 'bottom', title: { display: true, text: 'Minutes' } },
+                        cumPct: {
+                            type: 'linear',
+                            position: 'top',
+                            min: 0,
+                            max: 100,
+                            title: { display: true, text: 'Cumulative %' },
+                            ticks: { callback: v => v + '%' },
+                            grid: { drawOnChartArea: false }
+                        },
+                        y: { ticks: { autoSkip: false, font: { size: 11 } } }
+                    }
                 }
             });
         }
