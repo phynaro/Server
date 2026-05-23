@@ -3,6 +3,7 @@ Chart.register(ChartDataLabels);
 
 let stateChart = null;
 let paretoChart = null;
+let waterfallChart = null;
 let currentTimelineData = [];
 let currentSort = { column: null, direction: 'asc' };
 let lastOeeSuccess = null;
@@ -139,6 +140,7 @@ async function updateDashboard() {
 
         renderKPIs(data.kpis);
         renderStateChart(data.summary);
+        renderWaterfallChart(data.kpis, data.topLosses);
         renderParetoChart(data.topLosses);
         renderTimeline(currentTimelineData);
 
@@ -180,6 +182,153 @@ function renderKPIs(kpis) {
 
     document.getElementById('kpiMtbf').innerText = kpis.mtbf ? formatTime(kpis.mtbf) : 'N/A';
     document.getElementById('kpiMttr').innerText = kpis.totalFailures > 0 ? formatTime(kpis.mttr) : 'No Faults';
+}
+
+let waterfallUnit = 'pct';   // 'pct' or 'min'
+let waterfallContext = null; // last { kpis, topLosses } for re-render
+
+function setWaterfallUnit(unit) {
+    waterfallUnit = unit;
+    document.querySelectorAll('#wfUnit .unit-opt').forEach(a => {
+        a.classList.toggle('active', a.dataset.unit === unit);
+    });
+    if (waterfallContext) renderWaterfallChart(waterfallContext.kpis, waterfallContext.topLosses);
+}
+
+function fmtMin(sec) {
+    const m = sec / 60;
+    if (m >= 60) return `${(m / 60).toFixed(1)}h`;
+    return `${m.toFixed(0)}m`;
+}
+
+function renderWaterfallChart(kpis, topLosses) {
+    waterfallContext = { kpis, topLosses };
+    const ctx = document.getElementById('waterfallChart').getContext('2d');
+    if (waterfallChart) waterfallChart.destroy();
+
+    const a = parseFloat(kpis.operationalAvailability) || 0;
+    const p = parseFloat(kpis.performance) || 0;
+    const q = parseFloat(kpis.quality) || 0;
+    const oee = parseFloat(kpis.oee) || 0;
+
+    const availReasons = (topLosses || []).slice(0, 5);
+    const availTimeSec = kpis.availableTime || 0;
+    const uptimeSec = availTimeSec * a / 100; // Run + Starved + Blocked (ISO 22400 uptime)
+    const totalCount = kpis.totalCount || 0;
+    const badCount = kpis.badCount || 0;
+
+    // Values in either unit
+    let productive, losses, axisMax, lossNames, axisFmt, makeLabel;
+    if (waterfallUnit === 'min') {
+        // Time values in seconds, then formatted in tooltip; X axis values are in seconds for stacking math
+        const plantOpSec = availTimeSec;
+        const plannedSec = availTimeSec;
+        const netRunSec = uptimeSec * p / 100;
+        const fullProdSec = uptimeSec * p * q / 10000;
+
+        const schedLossSec = 0;
+        const availLossSec = Math.max(0, plannedSec - uptimeSec);
+        const perfLossSec = Math.max(0, uptimeSec - netRunSec);
+        const qualLossSec = Math.max(0, netRunSec - fullProdSec);
+
+        productive = [plantOpSec, plannedSec, uptimeSec, netRunSec, fullProdSec];
+        losses = [0, schedLossSec, availLossSec, perfLossSec, qualLossSec];
+        axisMax = plantOpSec || 1;
+        axisFmt = (v) => fmtMin(v);
+        makeLabel = (sec) => fmtMin(sec);
+    } else {
+        const runVal = a;
+        const netRunVal = (a * p) / 100;
+        const fullyProdVal = oee;
+        const availLoss = Math.max(0, 100 - runVal);
+        const perfLoss = Math.max(0, runVal - netRunVal);
+        const qualLoss = Math.max(0, netRunVal - fullyProdVal);
+
+        productive = [100, 100, runVal, netRunVal, fullyProdVal];
+        losses = [0, 0, availLoss, perfLoss, qualLoss];
+        axisMax = 100;
+        axisFmt = (v) => v + '%';
+        makeLabel = (v) => `${v.toFixed(1)}%`;
+    }
+
+    const lossCategoryNames = ['—', 'Schedule Loss', 'Availability Loss', 'Performance Loss', 'Quality Loss'];
+    const lossColors = ['rgba(0,0,0,0)', '#9e9e9e', '#a4262c', '#ffb900', '#d97706'];
+
+    waterfallChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: [
+                'Plant Operating Time',
+                'Planned Production Time',
+                'Machine Uptime',
+                'Net Run Time',
+                `Fully Productive Time (OEE ${oee.toFixed(1)}%)`
+            ],
+            datasets: [
+                {
+                    label: 'Productive',
+                    data: productive,
+                    backgroundColor: ['#0056b3', '#107c10', '#107c10', '#107c10', '#107c10'],
+                    stack: 'oee'
+                },
+                {
+                    label: 'Loss',
+                    data: losses,
+                    backgroundColor: lossColors,
+                    stack: 'oee'
+                }
+            ]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            scales: {
+                x: { stacked: true, beginAtZero: true, max: axisMax, ticks: { callback: axisFmt } },
+                y: { stacked: true, grid: { display: false }, ticks: { font: { size: 12, weight: '600' } } }
+            },
+            plugins: {
+                legend: { display: false },
+                datalabels: { display: false },
+                tooltip: {
+                    callbacks: {
+                        title: (items) => items[0].label.split('(')[0].trim(),
+                        label: (item) => {
+                            const i = item.dataIndex;
+                            const isLoss = item.dataset.label === 'Loss';
+                            const v = item.parsed.x;
+                            if (!isLoss) return `Remaining: ${makeLabel(v)}`;
+                            if (i === 0 || v === 0) return null;
+                            return `${lossCategoryNames[i]}: −${makeLabel(v)}`;
+                        },
+                        afterBody: (items) => {
+                            const item = items.find(it => it.dataset.label === 'Loss') || items[0];
+                            const i = item.dataIndex;
+                            if (i === 2) {
+                                if (!availReasons.length) return ['(no downtime reasons logged)'];
+                                const total = availReasons.reduce((s, r) => s + r.duration, 0);
+                                return ['', 'Top downtime reasons:'].concat(
+                                    availReasons.map(r => {
+                                        const pct = total > 0 ? (r.duration / total * 100).toFixed(0) : 0;
+                                        const mins = (r.duration / 60).toFixed(0);
+                                        return `  • ${r.reason}: ${mins}m (${pct}%)`;
+                                    })
+                                );
+                            }
+                            if (i === 3) {
+                                const gap = uptimeSec * (1 - p / 100);
+                                return ['', 'Speed / minor stops:', `  ≈ ${(gap / 60).toFixed(0)} min lost to speed & line constraints`];
+                            }
+                            if (i === 4) {
+                                const rate = totalCount > 0 ? (badCount / totalCount * 100).toFixed(2) : '0';
+                                return ['', `Rejects: ${badCount.toLocaleString()} / ${totalCount.toLocaleString()} cases (${rate}%)`];
+                            }
+                            return [];
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 function renderStateChart(summary) {
