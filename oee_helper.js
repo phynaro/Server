@@ -97,6 +97,7 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
     const timeline = [];
     const totalsByState = {};
     const totalsByReason = {};
+    const totalsByPerfReason = {};
     let faultCount = 0;
     let totalTime = 0;
 
@@ -125,10 +126,15 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
             totalTime += durationSec;
             totalsByState[label] = (totalsByState[label] || 0) + durationSec;
 
-            // Pareto: A-loss states only (Idle, Faulted) — Starved/Blocked are Performance losses
+            // A-loss Pareto (Idle, Faulted)
             if (current.StateCode === 4 || current.StateCode === 5) {
                 const reasonKey = `${label}: ${getReasonLabel(current.ReasonCode)}`;
                 totalsByReason[reasonKey] = (totalsByReason[reasonKey] || 0) + durationSec;
+            }
+            // P-loss Pareto (Starved, Blocked)
+            if (current.StateCode === 2 || current.StateCode === 3) {
+                const reasonKey = `${label}: ${getReasonLabel(current.ReasonCode)}`;
+                totalsByPerfReason[reasonKey] = (totalsByPerfReason[reasonKey] || 0) + durationSec;
             }
 
             if (current.StateCode === 5) faultCount++;
@@ -196,7 +202,18 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
         duration: totalsByReason[reason]
     })).sort((a, b) => b.duration - a.duration).slice(0, 5);
 
-    return { timeline, summary, kpis, topLosses, totalDuration: totalTime };
+    const perfReasonsList = Object.keys(totalsByPerfReason).map(reason => ({
+        reason: reason,
+        duration: totalsByPerfReason[reason]
+    }));
+    // Speed/rate loss: time machine was Running but slower than ideal
+    const speedLossSec = idealCycleTime > 0 && totalCount > 0
+        ? Math.max(0, runTime - idealCycleTime * totalCount)
+        : 0;
+    if (speedLossSec > 0) perfReasonsList.push({ reason: 'Speed / Rate Loss', duration: speedLossSec });
+    const topPerfLosses = perfReasonsList.sort((a, b) => b.duration - a.duration).slice(0, 5);
+
+    return { timeline, summary, kpis, topLosses, topPerfLosses, totalDuration: totalTime };
 }
 
 module.exports = {

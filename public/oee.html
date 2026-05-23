@@ -15,6 +15,7 @@
         .kpi-value { font-size: 1.8rem; font-weight: bold; margin: 5px 0; color: #111; }
         .kpi-label { font-size: 0.8rem; color: #666; font-weight: 600; text-transform: uppercase; }
         .station-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 20px; margin-bottom: 20px; }
+        .pareto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
         table { font-size: 0.85rem; }
         th { cursor: pointer; position: relative; }
         th:hover { background: #f0f0f0; }
@@ -27,6 +28,7 @@
         .last-seen-text { font-size: 0.75rem; color: #888; font-weight: normal; margin-left: 10px; }
         @media (max-width: 1000px) {
             .station-grid { grid-template-columns: 1fr; }
+            .pareto-grid { grid-template-columns: 1fr; }
         }
         .tooltip { position: absolute; top: 10px; right: 10px; cursor: pointer; z-index: 5; }
         .tooltip .info-icon {
@@ -203,26 +205,32 @@
         </div>
         <div class="status-line" id="oeeDataStatus"></div>
 
-        <div class="card" style="margin-bottom: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <h2 style="margin: 0; border: none;">OEE Loss Waterfall</h2>
-                <div class="unit-toggle" id="wfUnit">
-                    <a href="#" class="unit-opt active" data-unit="pct" onclick="setWaterfallUnit('pct'); return false;">%</a>
-                    <span>·</span>
-                    <a href="#" class="unit-opt" data-unit="min" onclick="setWaterfallUnit('min'); return false;">min</a>
-                </div>
-            </div>
-            <div class="chart-sm"><canvas id="waterfallChart"></canvas></div>
-        </div>
-
         <div class="station-grid">
             <div class="card">
                 <h2>State Distribution (%)</h2>
                 <div class="chart-sm"><canvas id="stateChart"></canvas></div>
             </div>
             <div class="card">
-                <h2>Top 5 Losses (Downtime Pareto)</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <h2 style="margin: 0; border: none;">OEE Loss Waterfall</h2>
+                    <div class="unit-toggle" id="wfUnit">
+                        <a href="#" class="unit-opt active" data-unit="pct" onclick="setWaterfallUnit('pct'); return false;">%</a>
+                        <span>·</span>
+                        <a href="#" class="unit-opt" data-unit="min" onclick="setWaterfallUnit('min'); return false;">min</a>
+                    </div>
+                </div>
+                <div class="chart-sm"><canvas id="waterfallChart"></canvas></div>
+            </div>
+        </div>
+
+        <div class="pareto-grid">
+            <div class="card">
+                <h2>Availability Loss Reasons</h2>
                 <div class="chart-sm"><canvas id="paretoChart"></canvas></div>
+            </div>
+            <div class="card">
+                <h2>Performance Loss Reasons</h2>
+                <div class="chart-sm"><canvas id="perfParetoChart"></canvas></div>
             </div>
         </div>
 

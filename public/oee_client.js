@@ -3,6 +3,7 @@ Chart.register(ChartDataLabels);
 
 let stateChart = null;
 let paretoChart = null;
+let perfParetoChart = null;
 let waterfallChart = null;
 let currentTimelineData = [];
 let currentSort = { column: null, direction: 'asc' };
@@ -142,6 +143,7 @@ async function updateDashboard() {
         renderStateChart(data.summary);
         renderWaterfallChart(data.kpis, data.topLosses);
         renderParetoChart(data.topLosses);
+        renderPerfParetoChart(data.topPerfLosses);
         renderTimeline(currentTimelineData);
 
         updateMachineStatus();
@@ -452,6 +454,108 @@ function renderParetoChart(losses) {
                     label: 'Loss Duration (min)',
                     data: losses.map(l => (l.duration / 60).toFixed(1)),
                     backgroundColor: '#a4262c',
+                    borderRadius: 4,
+                    xAxisID: 'x'
+                },
+                {
+                    type: 'line',
+                    label: 'Cumulative %',
+                    data: cumulative,
+                    borderColor: '#0056b3',
+                    borderWidth: 2,
+                    pointRadius: 4,
+                    pointBackgroundColor: '#0056b3',
+                    fill: false,
+                    tension: 0,
+                    xAxisID: 'cumPct',
+                    showLine: false,
+                    pointStyle: false,
+                    _paretoOverlay: true
+                },
+                {
+                    type: 'line',
+                    label: '80% target',
+                    data: losses.map(() => 80),
+                    borderColor: '#888',
+                    borderWidth: 1,
+                    borderDash: [5, 5],
+                    pointRadius: 0,
+                    fill: false,
+                    xAxisID: 'cumPct',
+                    showLine: false,
+                    _paretoOverlay: true
+                }
+            ]
+        },
+        plugins: [paretoLineOnTopPlugin],
+        options: {
+            indexAxis: 'y',
+            maintainAspectRatio: false,
+            layout: { padding: { left: 20 } },
+            plugins: {
+                legend: {
+                    display: true,
+                    labels: {
+                        filter: item => item.text !== '80% target',
+                        boxWidth: 12,
+                        font: { size: 11 }
+                    }
+                },
+                tooltip: {
+                    enabled: true,
+                    bodyFont: { size: 12 },
+                    callbacks: {
+                        label: (ctx) => {
+                            if (ctx.dataset.label === 'Loss Duration (min)') return `Duration: ${ctx.raw} min`;
+                            if (ctx.dataset.label === 'Cumulative %') return `Cumulative: ${ctx.raw}%`;
+                            return null;
+                        }
+                    }
+                },
+                datalabels: { display: false }
+            },
+            scales: {
+                x: { beginAtZero: true, position: 'bottom', title: { display: true, text: 'Minutes' } },
+                cumPct: {
+                    type: 'linear',
+                    position: 'top',
+                    min: 0,
+                    max: 100,
+                    title: { display: true, text: 'Cumulative %' },
+                    ticks: { callback: v => v + '%' },
+                    grid: { drawOnChartArea: false }
+                },
+                y: { ticks: { autoSkip: false, font: { size: 11 } } }
+            }
+        }
+    });
+}
+
+function renderPerfParetoChart(losses) {
+    const ctx = document.getElementById('perfParetoChart').getContext('2d');
+    if (perfParetoChart) perfParetoChart.destroy();
+
+    if (!losses || losses.length === 0) {
+        perfParetoChart = null;
+        return;
+    }
+
+    const totalDuration = losses.reduce((sum, l) => sum + l.duration, 0);
+    let cumSum = 0;
+    const cumulative = losses.map(l => {
+        cumSum += l.duration;
+        return parseFloat(((cumSum / totalDuration) * 100).toFixed(1));
+    });
+
+    perfParetoChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: losses.map(l => l.reason),
+            datasets: [
+                {
+                    label: 'Loss Duration (min)',
+                    data: losses.map(l => (l.duration / 60).toFixed(1)),
+                    backgroundColor: '#ffb900',
                     borderRadius: 4,
                     xAxisID: 'x'
                 },
