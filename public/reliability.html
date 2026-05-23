@@ -459,11 +459,10 @@
             const q = mean('Quality');
             const oee = (a * p * q) / 10000;
 
-            // Approximate available time = sum(TechUptime + FaultTime) across days
-            const sumTechUptime = sum('TechUptime');
-            const sumFaultTime = sum('FaultTime');
-            const availTimeSec = sumTechUptime + sumFaultTime;
-            const runTimeSec = availTimeSec * a / 100;
+            // Use stored AvailableTime (TotalTime - PlannedStop); fall back to derivation for old rows
+            const sumAvailTime = sum('AvailableTime');
+            const sumUptime = sum('TechUptime');  // Run+Starved+Blocked
+            const availTimeSec = sumAvailTime > 0 ? sumAvailTime : (a > 0 ? sumUptime / (a / 100) : sumUptime);
             const totalCount = sum('TotalCount');
             const badCount = sum('BadCount');
 
@@ -475,11 +474,12 @@
             if (waterfallUnit === 'min') {
                 const plantOpSec = availTimeSec;
                 const plannedSec = availTimeSec;
-                const netRunSec = runTimeSec * p / 100;
-                const fullProdSec = runTimeSec * p * q / 10000;
+                const uptimeSec = sumUptime;  // Machine Uptime = Run+Starved+Blocked
+                const netRunSec = uptimeSec * p / 100;
+                const fullProdSec = uptimeSec * p * q / 10000;
 
-                productive = [plantOpSec, plannedSec, runTimeSec, netRunSec, fullProdSec];
-                losses = [0, 0, Math.max(0, plannedSec - runTimeSec), Math.max(0, runTimeSec - netRunSec), Math.max(0, netRunSec - fullProdSec)];
+                productive = [plantOpSec, plannedSec, uptimeSec, netRunSec, fullProdSec];
+                losses = [0, 0, Math.max(0, plannedSec - uptimeSec), Math.max(0, uptimeSec - netRunSec), Math.max(0, netRunSec - fullProdSec)];
                 axisMax = plantOpSec || 1;
                 axisFmt = (v) => fmtMin(v);
                 makeLabel = (sec) => fmtMin(sec);

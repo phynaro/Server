@@ -159,6 +159,13 @@ db.serialize(() => {
         if (err) console.error('Error creating MachineQualityEvents table:', err.message);
         else console.log('MachineQualityEvents table ready.');
     });
+
+    // Migration: add AvailableTime to DailyKpiSummary if missing
+    db.run('ALTER TABLE DailyKpiSummary ADD COLUMN AvailableTime INTEGER', (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+            console.error('Migration DailyKpiSummary.AvailableTime:', err.message);
+        }
+    });
 });
 
 // Returns the correct shift date (6AM–6AM) for a local timestamp string
@@ -1132,10 +1139,10 @@ app.get('/api/kpi/daily-month', (req, res) => {
     if (!source || !year || !month) return res.status(400).json({ error: 'Missing source, year, or month' });
 
     const query = `
-        SELECT 
+        SELECT
             ProdDate as Date,
             Availability, Performance, Quality, Oee,
-            TechUptime, FaultTime, FaultCount
+            TechUptime, AvailableTime, FaultTime, FaultCount, TotalCount, BadCount
         FROM DailyKpiSummary
         WHERE Machine = ? AND strftime('%Y', ProdDate) = ? AND strftime('%m', ProdDate) = ?
         ORDER BY Date ASC
@@ -1259,7 +1266,8 @@ app.get('/api/kpi/trends', (req, res) => {
     if (!source) return res.status(400).json({ error: 'Missing source' });
 
     const query = `
-        SELECT ProdDate as Date, Availability, Performance, Quality, Oee
+        SELECT ProdDate as Date, Availability, Performance, Quality, Oee,
+               TechUptime, AvailableTime, FaultTime, TotalCount, BadCount
         FROM DailyKpiSummary
         WHERE Machine = ? AND ProdDate <= ?
         ORDER BY Date DESC

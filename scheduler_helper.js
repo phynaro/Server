@@ -77,29 +77,29 @@ async function updateMachineDay(db, date, machine) {
     const ict = await getICT(machine);
     console.log(`[Scheduler Debug] ICT: ${ict}`);
 
-    // Production Count Mapping
+    // Production Count Mapping — rejectType = CapCloser TypeOfProduct for machine-reported rejects
     const prodMapping = {
-        'CasePacker1_A': { source: 'CasePacker1', type: '1' },
-        'CasePacker1_B': { source: 'CasePacker1', type: '2' },
-        'CasePacker2_A': { source: 'CasePacker2', type: '3' },
-        'CasePacker2_B': { source: 'CasePacker2', type: '4' },
-        'CasePacker3_A': { source: 'CasePacker3', type: '5' },
-        'CasePacker3_B': { source: 'CasePacker3', type: '6' },
+        'CasePacker1_A': { source: 'CasePacker1', type: '1', rejectType: '901' },
+        'CasePacker1_B': { source: 'CasePacker1', type: '2', rejectType: '902' },
+        'CasePacker2_A': { source: 'CasePacker2', type: '3', rejectType: '903' },
+        'CasePacker2_B': { source: 'CasePacker2', type: '4', rejectType: '904' },
+        'CasePacker3_A': { source: 'CasePacker3', type: '5', rejectType: '905' },
+        'CasePacker3_B': { source: 'CasePacker3', type: '6', rejectType: '906' },
         'CaseForming': { source: 'CaseForming', types: ['10', '20', '30'] },
         'Palletizer': { source: 'Palletizer', types: ['1', '2', '3', '4', '5', '6'] }
     };
     const mapping = prodMapping[machine];
     let totalCount = 0;
-    
+
     if (machine === 'Palletizer') {
-        const cQuery = `SELECT SUM(CASE WHEN TypeOfProduct IN ('1', '2') THEN 8 ELSE 6 END) as Count 
-                        FROM ReceivedData 
-                        WHERE Source = 'Palletizer' AND TypeOfProduct IN ('1','2','3','4','5','6') 
+        const cQuery = `SELECT SUM(CASE WHEN TypeOfProduct IN ('1', '2') THEN 8 ELSE 6 END) as Count
+                        FROM ReceivedData
+                        WHERE Source = 'Palletizer' AND TypeOfProduct IN ('1','2','3','4','5','6')
                         AND SourceTimestamp BETWEEN ? AND ?`;
         const cRow = await new Promise((resolve, reject) => db.get(cQuery, [startSQL, endSQL], (err, row) => err ? reject(err) : resolve(row)));
         totalCount = cRow ? (cRow.Count || 0) : 0;
     } else if (mapping) {
-        let cQuery = mapping.types 
+        let cQuery = mapping.types
             ? `SELECT COUNT(*) as Count FROM ReceivedData WHERE Source = ? AND TypeOfProduct IN (${mapping.types.map(()=>'?').join(',')}) AND SourceTimestamp BETWEEN ? AND ?`
             : `SELECT COUNT(*) as Count FROM ReceivedData WHERE Source = ? AND TypeOfProduct = ? AND SourceTimestamp BETWEEN ? AND ?`;
         let cParams = mapping.types ? [mapping.source, ...mapping.types, startSQL, endSQL] : [mapping.source, mapping.type, startSQL, endSQL];
@@ -107,27 +107,46 @@ async function updateMachineDay(db, date, machine) {
         totalCount = cRow ? (cRow.Count || 0) : 0;
     }
 
-    // Bad Count
+    // Shift local-time boundaries for QualityData (stored in UTC+7 local time, 6AM–6AM window)
+    const startLocalStr = `${date} 06:00:00`;
+    const endLocalStr = `${endObj.toISOString().split('T')[0]} 06:00:00`;
+
+    // Bad Count: manual QualityData entries + CapCloser machine-reported rejects (packer machines)
     let badCount = 0;
     if (machine === 'Palletizer') {
-        const bQuery = `SELECT SUM(CASE WHEN ProductType IN ('1', '2') THEN BadCount * 8 ELSE BadCount * 6 END) as TotalBad 
-                        FROM QualityData 
-                        WHERE Machine = 'Palletizer' AND ProductType IN ('1','2','3','4','5','6') 
-                        AND date(LocalTimestamp) = ?`;
-        const bRow = await new Promise((resolve, reject) => db.get(bQuery, [date], (err, row) => err ? reject(err) : resolve(row)));
+        const bQuery = `SELECT SUM(CASE WHEN ProductType IN ('1', '2') THEN BadCount * 8 ELSE BadCount * 6 END) as TotalBad
+                        FROM QualityData
+                        WHERE Machine = 'Palletizer' AND ProductType IN ('1','2','3','4','5','6')
+                        AND datetime(LocalTimestamp) BETWEEN ? AND ?`;
+        const bRow = await new Promise((resolve, reject) => db.get(bQuery, [startLocalStr, endLocalStr], (err, row) => err ? reject(err) : resolve(row)));
         badCount = bRow ? (bRow.TotalBad || 0) : 0;
     } else {
-        let bQuery = "SELECT SUM(BadCount) as TotalBad FROM QualityData WHERE Machine = ? AND date(LocalTimestamp) = ?";
-        let bParams = [machine, date];
+        let bQuery, bParams;
         if (machine === 'CaseForming') {
-            bQuery = "SELECT SUM(BadCount) as TotalBad FROM QualityData WHERE Machine = 'CaseForming' AND ProductType IN ('10','20','30') AND date(LocalTimestamp) = ?";
-            bParams = [date];
-        } else if (mapping) {
-            bQuery = "SELECT SUM(BadCount) as TotalBad FROM QualityData WHERE Machine = ? AND ProductType = ? AND date(LocalTimestamp) = ?";
-            bParams = [machine, mapping.type, date];
+            bQuery = "SELECT SUM(BadCount) as TotalBad FROM QualityData WHERE Machine = 'CaseForming' AND ProductType IN ('10','20','30') AND datetime(LocalTimestamp) BETWEEN ? AND ?";
+            bParams = [startLocalStr, endLocalStr];
+        } else if (mapping && mapping.type) {
+            bQuery = "SELECT SUM(BadCount) as TotalBad FROM QualityData WHERE Machine = ? AND ProductType = ? AND datetime(LocalTimestamp) BETWEEN ? AND ?";
+            bParams = [machine, mapping.type, startLocalStr, endLocalStr];
+        } else {
+            bQuery = "SELECT SUM(BadCount) as TotalBad FROM QualityData WHERE Machine = ? AND datetime(LocalTimestamp) BETWEEN ? AND ?";
+            bParams = [machine, startLocalStr, endLocalStr];
         }
         const bRow = await new Promise((resolve, reject) => db.get(bQuery, bParams, (err, row) => err ? reject(err) : resolve(row)));
-        badCount = bRow ? (bRow.TotalBad || 0) : 0;
+        const manualBad = bRow ? (bRow.TotalBad || 0) : 0;
+
+        // CapCloser machine-reported rejects
+        const rejectType = mapping && mapping.rejectType;
+        let capBad = 0;
+        if (rejectType) {
+            const capRow = await new Promise((resolve, reject) => db.get(
+                `SELECT COUNT(*) as TotalRejects FROM ReceivedData WHERE Source = 'CapCloser' AND TypeOfProduct = ? AND SourceTimestamp BETWEEN ? AND ?`,
+                [rejectType, startSQL, endSQL],
+                (err, row) => err ? reject(err) : resolve(row)
+            ));
+            capBad = capRow ? (capRow.TotalRejects || 0) : 0;
+        }
+        badCount = manualBad + capBad;
     }
 
     // OEE Data
@@ -161,19 +180,21 @@ async function updateMachineDay(db, date, machine) {
 
     if (finalRows.length >= 2) {
         const results = oeeHelper.calculateStateDurations(finalRows, false, ict, totalCount, badCount);
-        
+
         const runTime = results.summary.find(s => s.stateLabel === 'Running')?.duration || 0;
         const starvedTime = results.summary.find(s => s.stateLabel === 'Starved')?.duration || 0;
         const blockedTime = results.summary.find(s => s.stateLabel === 'Blocked')?.duration || 0;
-        const techUptime = runTime + starvedTime + blockedTime;
+        const uptime = runTime + starvedTime + blockedTime; // Run+Starved+Blocked (used for MTBF)
         const faultTime = results.summary.find(s => s.stateLabel === 'Faulted')?.duration || 0;
         const faultCount = results.kpis.totalFailures;
+        const availableTime = results.kpis.availableTime || 0; // TotalTime - PlannedStop
 
         const upsertQuery = `
-            INSERT INTO DailyKpiSummary (ProdDate, Machine, TechUptime, FaultTime, FaultCount, TotalCount, BadCount, Availability, Performance, Quality, Oee, SummaryJson, TopLossesJson)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO DailyKpiSummary (ProdDate, Machine, TechUptime, AvailableTime, FaultTime, FaultCount, TotalCount, BadCount, Availability, Performance, Quality, Oee, SummaryJson, TopLossesJson)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(ProdDate, Machine) DO UPDATE SET
                 TechUptime = excluded.TechUptime,
+                AvailableTime = excluded.AvailableTime,
                 FaultTime = excluded.FaultTime,
                 FaultCount = excluded.FaultCount,
                 TotalCount = excluded.TotalCount,
@@ -186,7 +207,7 @@ async function updateMachineDay(db, date, machine) {
                 TopLossesJson = excluded.TopLossesJson
         `;
         await new Promise((resolve, reject) => db.run(upsertQuery, [
-            date, machine, techUptime, faultTime, faultCount, totalCount, badCount,
+            date, machine, uptime, availableTime, faultTime, faultCount, totalCount, badCount,
             results.kpis.operationalAvailability, results.kpis.performance, results.kpis.quality, results.kpis.oee,
             JSON.stringify(results.summary), JSON.stringify(results.topLosses)
         ], (err) => err ? reject(err) : resolve()));
