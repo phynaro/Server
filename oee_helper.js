@@ -175,7 +175,7 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
         performance: (performance * 100).toFixed(1),
         quality: (quality * 100).toFixed(1),
         oee: (oeeValue * 100).toFixed(1),
-        mtbf: faultCount > 0 ? Math.floor(techUptime / faultCount) : null,
+        mtbf: faultCount > 0 ? Math.floor(uptime / faultCount) : null,
         mttr: faultCount > 0 ? Math.floor(faultTime / faultCount) : 0,
         totalFailures: faultCount,
         totalCount: totalCount,
