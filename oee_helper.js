@@ -97,6 +97,7 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
     const timeline = [];
     const totalsByState = {};
     const totalsByReason = {};
+    const totalsByAvailReason = {};
     let faultCount = 0;
     let totalTime = 0;
 
@@ -125,10 +126,15 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
             totalTime += durationSec;
             totalsByState[label] = (totalsByState[label] || 0) + durationSec;
 
-            // Pareto logic (only for loss states: Faulted, Idle, Blocked, Starved)
+            // Pareto: all loss states (Starved, Blocked, Idle, Faulted) — used by Pareto chart
             if (current.StateCode >= 2 && current.StateCode <= 5) {
                 const reasonKey = `${label}: ${getReasonLabel(current.ReasonCode)}`;
                 totalsByReason[reasonKey] = (totalsByReason[reasonKey] || 0) + durationSec;
+            }
+            // Availability losses only (Idle, Faulted) — used by waterfall A-loss tooltip
+            if (current.StateCode === 4 || current.StateCode === 5) {
+                const reasonKey = `${label}: ${getReasonLabel(current.ReasonCode)}`;
+                totalsByAvailReason[reasonKey] = (totalsByAvailReason[reasonKey] || 0) + durationSec;
             }
 
             if (current.StateCode === 5) faultCount++;
@@ -196,7 +202,12 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
         duration: totalsByReason[reason]
     })).sort((a, b) => b.duration - a.duration).slice(0, 5);
 
-    return { timeline, summary, kpis, topLosses, totalDuration: totalTime };
+    const topAvailLosses = Object.keys(totalsByAvailReason).map(reason => ({
+        reason: reason,
+        duration: totalsByAvailReason[reason]
+    })).sort((a, b) => b.duration - a.duration).slice(0, 5);
+
+    return { timeline, summary, kpis, topLosses, topAvailLosses, totalDuration: totalTime };
 }
 
 module.exports = {

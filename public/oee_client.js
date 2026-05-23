@@ -140,7 +140,7 @@ async function updateDashboard() {
 
         renderKPIs(data.kpis);
         renderStateChart(data.summary);
-        renderWaterfallChart(data.kpis, data.topLosses);
+        renderWaterfallChart(data.kpis, data.topLosses, data.topAvailLosses);
         renderParetoChart(data.topLosses);
         renderTimeline(currentTimelineData);
 
@@ -192,7 +192,7 @@ function setWaterfallUnit(unit) {
     document.querySelectorAll('#wfUnit .unit-opt').forEach(a => {
         a.classList.toggle('active', a.dataset.unit === unit);
     });
-    if (waterfallContext) renderWaterfallChart(waterfallContext.kpis, waterfallContext.topLosses);
+    if (waterfallContext) renderWaterfallChart(waterfallContext.kpis, waterfallContext.topLosses, waterfallContext.topAvailLosses);
 }
 
 function fmtMin(sec) {
@@ -201,8 +201,8 @@ function fmtMin(sec) {
     return `${m.toFixed(0)}m`;
 }
 
-function renderWaterfallChart(kpis, topLosses) {
-    waterfallContext = { kpis, topLosses };
+function renderWaterfallChart(kpis, topLosses, topAvailLosses) {
+    waterfallContext = { kpis, topLosses, topAvailLosses };
     const ctx = document.getElementById('waterfallChart').getContext('2d');
     if (waterfallChart) waterfallChart.destroy();
 
@@ -211,7 +211,7 @@ function renderWaterfallChart(kpis, topLosses) {
     const q = parseFloat(kpis.quality) || 0;
     const oee = parseFloat(kpis.oee) || 0;
 
-    const availReasons = (topLosses || []).slice(0, 5);
+    const availReasons = (topAvailLosses || []).slice(0, 5);
     const availTimeSec = kpis.availableTime || 0;
     const uptimeSec = availTimeSec * a / 100; // Run + Starved + Blocked (ISO 22400 uptime)
     const totalCount = kpis.totalCount || 0;
