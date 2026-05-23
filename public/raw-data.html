@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Raw Data — Production Performance</title>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="shared.css">
+    <script src="shared.js"></script>
+    <style>
+        .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .page-header h2 { margin: 0; border: none; }
+        .export-btn {
+            background: #111; color: #fff; border: none; padding: 8px 16px;
+            border-radius: 4px; cursor: pointer; font-size: 0.85rem; font-weight: 600;
+        }
+        .export-btn:hover { background: #333; }
+        .row-count { font-size: 0.85rem; color: #888; margin-bottom: 10px; }
+        .date-toggle { display: flex; align-items: center; gap: 8px; }
+        .date-toggle span { color: #ccc; }
+        .date-opt { text-decoration: none; color: #888; font-size: 0.85rem; font-weight: 600; }
+        .date-opt:hover { color: #333; }
+        .date-opt.active { color: #111; font-weight: 700; border-bottom: 2px solid #111; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="brand-group">
+                <img src="https://kinetix.co.th/wp-content/uploads/2023/02/cropped-Kinetix_Web_Logo2-1.png" alt="Kinetix Logo" class="logo">
+                <div class="brand-text">
+                    <div class="company-name">Thantawan Industry Vietnam</div>
+                    <div class="dashboard-title">Production Performance</div>
+                </div>
+            </div>
+            <button class="menu-toggle" onclick="toggleMenu()" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+            <div class="nav-menu" id="navMenu">
+                <a href="index.html" class="nav-link">Production Dashboard</a>
+                <a href="oee.html" class="nav-link">OEE Dashboard</a>
+                <a href="reliability.html" class="nav-link">Reliability Trends</a>
+                <a href="quality.html" class="nav-link">Quality Data</a>
+                <a href="settings.html" class="nav-link">Settings</a>
+            </div>
+        </header>
+
+        <div class="filters">
+            <div class="date-toggle">
+                <a href="#" class="date-opt active" id="optToday" onclick="setRange('today'); return false;">Today</a>
+                <span>·</span>
+                <a href="#" class="date-opt" id="opt7days" onclick="setRange('7days'); return false;">Last 7 Days</a>
+                <span>·</span>
+                <a href="#" class="date-opt" id="optCustom" onclick="setRange('custom'); return false;">Custom</a>
+            </div>
+            <div class="filter-group"><label>From</label><input type="datetime-local" id="fromDate"></div>
+            <div class="filter-group"><label>To</label><input type="datetime-local" id="toDate"></div>
+            <button onclick="loadData()">Refresh</button>
+        </div>
+
+        <div class="card">
+            <div class="page-header">
+                <h2 id="tableTitle">Raw Data</h2>
+                <button class="export-btn" onclick="exportExcel()">Export Excel</button>
+            </div>
+            <div class="row-count" id="rowCount"></div>
+            <div class="status-line" id="dataStatus"></div>
+            <div style="overflow-x: auto;">
+                <table id="rawTable">
+                    <thead id="tableHead"></thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const TABLE_CONFIG = {
+            forming:    { title: 'Case Forming — Raw Records',     source: 'CaseForming',  label: 'Case Forming' },
+            packers:    { title: 'Case Packers 1–3 — Raw Records', source: 'CasePacker%',  label: 'Case Packers' },
+            closer:     { title: 'Cap Closer — Raw Records',       source: 'CapCloser',    label: 'Cap Closer' },
+            palletizer: { title: 'Palletizer — Raw Records',       source: 'Palletizer',   label: 'Palletizer' }
+        };
+
+        const COLUMNS = [
+            { key: 'id',            label: 'ID' },
+            { key: 'LocalDateTime', label: 'Local Timestamp' },
+            { key: 'Source',        label: 'Source' },
+            { key: 'TypeOfProduct', label: 'Product' },
+            { key: 'Qty',           label: 'Qty' }
+        ];
+
+        function getParams() {
+            return new URLSearchParams(window.location.search);
+        }
+
+        function toLocalISO(date) {
+            const tzOffset = date.getTimezoneOffset() * 60000;
+            return new Date(date - tzOffset).toISOString().slice(0, 16);
+        }
+
+        function setRange(mode) {
+            document.querySelectorAll('.date-opt').forEach(a => a.classList.remove('active'));
+            const now = new Date();
+            if (mode === 'today') {
+                document.getElementById('optToday').classList.add('active');
+                const s = new Date(now);
+                if (s.getHours() < 6) s.setDate(s.getDate() - 1);
+                s.setHours(6, 0, 0, 0);
+                document.getElementById('fromDate').value = toLocalISO(s);
+                document.getElementById('toDate').value = toLocalISO(now);
+            } else if (mode === '7days') {
+                document.getElementById('opt7days').classList.add('active');
+                const s = new Date(now);
+                s.setDate(s.getDate() - 7);
+                s.setHours(6, 0, 0, 0);
+                const e = new Date(now);
+                if (e.getHours() >= 6) e.setDate(e.getDate() + 1);
+                e.setHours(6, 0, 0, 0);
+                document.getElementById('fromDate').value = toLocalISO(s);
+                document.getElementById('toDate').value = toLocalISO(e);
+            } else {
+                document.getElementById('optCustom').classList.add('active');
+            }
+            loadData();
+        }
+
+        document.getElementById('fromDate').addEventListener('change', () => {
+            document.querySelectorAll('.date-opt').forEach(a => a.classList.remove('active'));
+            document.getElementById('optCustom').classList.add('active');
+        });
+        document.getElementById('toDate').addEventListener('change', () => {
+            document.querySelectorAll('.date-opt').forEach(a => a.classList.remove('active'));
+            document.getElementById('optCustom').classList.add('active');
+        });
+
+        let currentData = [];
+        const params = getParams();
+        const tableKey = params.get('table') || 'forming';
+        const config = TABLE_CONFIG[tableKey] || TABLE_CONFIG.forming;
+
+        document.getElementById('tableTitle').textContent = config.title;
+        document.title = config.label + ' — Raw Data';
+
+        // Build table header once
+        document.getElementById('tableHead').innerHTML =
+            '<tr>' + COLUMNS.map(c => `<th>${c.label}</th>`).join('') + '</tr>';
+
+        // Restore date range from URL params if present
+        const urlFrom = params.get('from');
+        const urlTo = params.get('to');
+        if (urlFrom && urlTo) {
+            document.getElementById('fromDate').value = urlFrom;
+            document.getElementById('toDate').value = urlTo;
+            document.querySelectorAll('.date-opt').forEach(a => a.classList.remove('active'));
+            document.getElementById('optCustom').classList.add('active');
+        } else {
+            // Default to today's shift
+            const now = new Date();
+            const s = new Date(now);
+            if (s.getHours() < 6) s.setDate(s.getDate() - 1);
+            s.setHours(6, 0, 0, 0);
+            document.getElementById('fromDate').value = toLocalISO(s);
+            document.getElementById('toDate').value = toLocalISO(now);
+        }
+
+        async function loadData() {
+            const from = document.getElementById('fromDate').value;
+            const to = document.getElementById('toDate').value;
+            showDataStatus('dataStatus', 'loading', 'Loading…');
+            try {
+                const res = await fetch(
+                    `/api/raw?source=${encodeURIComponent(config.source)}&from=${from}&to=${to}`
+                );
+                if (!res.ok) throw new Error('Server error ' + res.status);
+                currentData = await res.json();
+                clearDataStatus('dataStatus');
+                renderTable(currentData);
+            } catch (e) {
+                showDataStatus('dataStatus', 'error', 'Failed to load data. <a href="#" onclick="loadData(); return false;">Retry</a>');
+            }
+        }
+
+        function renderTable(data) {
+            const body = document.getElementById('tableBody');
+            document.getElementById('rowCount').textContent =
+                data.length === 0 ? 'No records for this period.'
+                : `${data.length.toLocaleString()} record${data.length === 1 ? '' : 's'}` +
+                  (data.length === 5000 ? ' (limit reached — narrow your date range)' : '');
+
+            if (data.length === 0) {
+                body.innerHTML = `<tr><td colspan="${COLUMNS.length}" class="status-line">No data for this period.</td></tr>`;
+                return;
+            }
+            body.innerHTML = data.map(row =>
+                '<tr>' + COLUMNS.map(c => `<td>${row[c.key] ?? ''}</td>`).join('') + '</tr>'
+            ).join('');
+        }
+
+        function exportExcel() {
+            if (currentData.length === 0) return;
+            const from = document.getElementById('fromDate').value.replace('T', '_').replace(/:/g, '-').slice(0, 16);
+            const to   = document.getElementById('toDate').value.replace('T', '_').replace(/:/g, '-').slice(0, 16);
+            const filename = `${config.label.replace(/\s+/g, '_')}_${from}_to_${to}.xlsx`;
+
+            const wsData = [
+                COLUMNS.map(c => c.label),
+                ...currentData.map(row => COLUMNS.map(c => row[c.key] ?? ''))
+            ];
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            ws['!cols'] = COLUMNS.map((c, i) => ({
+                wch: Math.max(c.label.length, ...currentData.slice(0, 100).map(r => String(r[c.key] ?? '').length))
+            }));
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, config.label.slice(0, 31));
+            XLSX.writeFile(wb, filename);
+        }
+
+        loadData();
+    </script>
+</body>
+</html>

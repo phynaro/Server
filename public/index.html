@@ -35,6 +35,8 @@
         @media (max-width: 768px) {
             .date-toggle + .filter-group { margin-left: 0; }
         }
+        .raw-link { font-size: 0.75rem; color: #888; text-decoration: none; margin-left: 8px; font-weight: 600; }
+        .raw-link:hover { color: #111; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -97,6 +99,7 @@
                     <div class="card-header">
                         <h2>Case Forming</h2>
                         <span id="statusCaseForming" class="last-seen-text">Last data: --</span>
+                        <a href="#" class="raw-link" onclick="openRaw('forming'); return false;">View Raw</a>
                     </div>
                     <table>
                         <thead><tr><th>Type</th><th>Formed Count</th><th>Rejected</th></tr></thead>
@@ -115,6 +118,7 @@
                     <div class="card-header">
                         <h2>Case Packers 1-3</h2>
                         <span id="statusPackers" class="last-seen-text">Last data: --</span>
+                        <a href="#" class="raw-link" onclick="openRaw('packers'); return false;">View Raw</a>
                     </div>
                     <table>
                         <thead><tr><th>Source</th><th>Type</th><th>Actual Tray</th><th>Actual Box</th><th>Calculated Box</th><th>Diff</th></tr></thead>
@@ -133,6 +137,7 @@
                     <div class="card-header">
                         <h2>Cap Closer (Quality)</h2>
                         <span id="statusCapCloser" class="last-seen-text">Last data: --</span>
+                        <a href="#" class="raw-link" onclick="openRaw('closer'); return false;">View Raw</a>
                     </div>
                     <div class="stat-row">
                         <div>Total Good: <span id="closerGood" class="status-good">0</span></div>
@@ -155,6 +160,7 @@
                     <div class="card-header">
                         <h2>Palletizer</h2>
                         <span id="statusPalletizer" class="last-seen-text">Last data: --</span>
+                        <a href="#" class="raw-link" onclick="openRaw('palletizer'); return false;">View Raw</a>
                     </div>
                     <div class="mb-sm">Total Trays: <strong id="palletCapacity">0</strong></div>
                     <table>
@@ -171,6 +177,13 @@
         function toLocalISO(date) {
             const tzOffset = date.getTimezoneOffset() * 60000;
             return new Date(date - tzOffset).toISOString().slice(0, 16);
+        }
+
+        function openRaw(table) {
+            const from = document.getElementById('fromDate').value;
+            const to   = document.getElementById('toDate').value;
+            const url  = `raw-data.html?table=${table}&from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`;
+            window.open(url, '_blank');
         }
 
         function setRange(mode) {

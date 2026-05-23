@@ -376,9 +376,9 @@
         // Returns [shiftStart, shiftEnd] as 'YYYY-MM-DD HH:MM:SS' strings for a given date
         function shiftWindow(date) {
             const start = date + ' 06:00:00';
-            const d = new Date(date + 'T00:00:00');
-            d.setDate(d.getDate() + 1);
-            const end = d.toISOString().slice(0, 10) + ' 06:00:00';
+            const [y, m, d] = date.split('-').map(Number);
+            const next = new Date(Date.UTC(y, m - 1, d + 1));
+            const end = next.toISOString().slice(0, 10) + ' 06:00:00';
             return [start, end];
         }
 
@@ -552,7 +552,7 @@
                     ? '<span class="badge badge-reject">NG</span>'
                     : '<span class="badge badge-ok">OK</span>';
                 const imgUrl = `https://thantawan.trazor.cloud${row.ImagePath}`;
-                const localDt = new Date(row.LocalTimestamp.replace(' ', 'T') + 'Z');
+                const localDt = new Date(row.Timestamp.replace(' ', 'T').replace(/(\.\d{3})\d*/, '$1').replace(/Z$/i, '') + 'Z');
                 const dtStr = localDt.toLocaleString('sv-SE', { timeZone: 'Asia/Bangkok' }).replace('T', ' ');
 
                 const card = document.createElement('div');
