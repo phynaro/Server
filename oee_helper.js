@@ -139,20 +139,24 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
     const runTime = totalsByState['Running'] || totalsByState['Running/Starved'] || 0;
     const starvedTime = totalsByState['Starved'] || 0;
     const blockedTime = totalsByState['Blocked'] || 0;
+    const idleTime = totalsByState['Idle/Wait Operator'] || 0;
     const faultTime = totalsByState['Faulted'] || 0;
     const plannedStop = totalsByState['Planned Stop'] || 0;
-    
+
+    // ISO 22400: Uptime = machine-ready states (line-constrained minor stops included)
+    const uptime = runTime + starvedTime + blockedTime;
     const availableTime = totalTime - plannedStop;
-    const techUptime = (totalsByState['Running/Starved'] || (runTime + starvedTime + blockedTime));
+    // TA numerator: only Faulted reduces it; Idle/Wait Operator is human-response loss
+    const techUptime = uptime + idleTime;
 
-    // A = Operational Availability
-    const availability = availableTime > 0 ? (runTime / availableTime) : 0;
+    // A = Operational Availability: downtime = Faulted + Idle/Wait Operator
+    const availability = availableTime > 0 ? (uptime / availableTime) : 0;
 
-    // P = (IdealCycleTimeSec x TotalCount) / RunningTime
+    // P = (IdealCycleTimeSec x TotalCount) / Uptime (Starved + Blocked are minor stops)
     let performance = 0;
-    if (runTime > 0 && idealCycleTime > 0) {
-        performance = (idealCycleTime * totalCount) / runTime;
-        if (performance > 1) performance = 1; // Cap at 100%
+    if (uptime > 0 && idealCycleTime > 0) {
+        performance = (idealCycleTime * totalCount) / uptime;
+        if (performance > 1) performance = 1;
     }
 
     // Q = (TotalCount - BadCount) / TotalCount
@@ -178,7 +182,7 @@ function calculateStateDurations(rows, mergeRunningStarved = false, idealCycleTi
         badCount: badCount,
         runTime: runTime,
         availableTime: availableTime,
-        totalLoss: availableTime - runTime
+        totalLoss: availableTime - uptime
     };
 
     const summary = Object.keys(totalsByState).map(label => ({
