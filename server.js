@@ -149,7 +149,7 @@ db.serialize(() => {
     // Machine-reported quality events with optional fault image
     db.run(`CREATE TABLE IF NOT EXISTS MachineQualityEvents (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        LocalTimestamp TEXT NOT NULL,
+        Timestamp TEXT NOT NULL,
         Source TEXT NOT NULL,
         TypeOfProduct TEXT,
         IsReject INTEGER DEFAULT 0,
@@ -365,7 +365,7 @@ app.get('/api/machine-quality-events', (req, res) => {
     const params = [];
 
     if (date) {
-        conditions.push(`date(LocalTimestamp, '+1 hour') = ?`);
+        conditions.push(`date(Timestamp, '+1 hour') = ?`);
         params.push(date);
     }
     if (source) {
@@ -379,7 +379,7 @@ app.get('/api/machine-quality-events', (req, res) => {
 
     const where = conditions.length > 0 ? ` WHERE ` + conditions.join(' AND ') : '';
     db.all(
-        `SELECT * FROM MachineQualityEvents${where} ORDER BY LocalTimestamp DESC LIMIT 200`,
+        `SELECT * FROM MachineQualityEvents${where} ORDER BY Timestamp DESC LIMIT 200`,
         params,
         (err, rows) => {
             if (err) return res.status(500).json({ error: err.message });
@@ -405,7 +405,7 @@ app.post('/api/data', (req, res) => {
         if (ImagePath) {
             const isReject = parseInt(TypeOfProduct) >= 900 ? 1 : 0;
             db.run(
-                `INSERT INTO MachineQualityEvents (LocalTimestamp, Source, TypeOfProduct, IsReject, ImagePath) VALUES (?, ?, ?, ?, ?)`,
+                `INSERT INTO MachineQualityEvents (Timestamp, Source, TypeOfProduct, IsReject, ImagePath) VALUES (?, ?, ?, ?, ?)`,
                 [Timestamp, sourceName, TypeOfProduct, isReject, ImagePath],
                 (mqErr) => { if (mqErr) console.error('MachineQualityEvents insert error:', mqErr.message); }
             );
@@ -687,25 +687,31 @@ app.get('/api/summary', (req, res) => {
 
 // Raw Data API with filtering
 app.get('/api/raw', (req, res) => {
-    const { from, to } = req.query;
-    let query = `SELECT *, datetime(SourceTimestamp, '+7 hours') as LocalDateTime FROM ReceivedData`;
+    const { from, to, source } = req.query;
+    const conditions = [];
     const params = [];
 
     if (from && to) {
-        // Raw filter using the same Production Day logic for consistency
         if (from.includes('T') || from.includes(':')) {
-            query += ` WHERE datetime(SourceTimestamp, '+7 hours') BETWEEN ? AND ? `;
+            conditions.push(`datetime(SourceTimestamp, '+7 hours') BETWEEN ? AND ?`);
         } else {
-            query += ` WHERE date(SourceTimestamp, '+1 hour') BETWEEN ? AND ? `;
+            conditions.push(`date(SourceTimestamp, '+1 hour') BETWEEN ? AND ?`);
         }
         params.push(from.replace('T', ' '), to.replace('T', ' '));
     }
-    query += ` ORDER BY SourceTimestamp DESC LIMIT 100`;
+
+    if (source) {
+        // Support LIKE patterns (e.g. "CasePacker%" for all packers)
+        conditions.push(`Source LIKE ?`);
+        params.push(source);
+    }
+
+    let query = `SELECT *, datetime(SourceTimestamp, '+7 hours') as LocalDateTime FROM ReceivedData`;
+    if (conditions.length > 0) query += ` WHERE ` + conditions.join(' AND ');
+    query += ` ORDER BY SourceTimestamp DESC LIMIT 5000`;
 
     db.all(query, params, (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
+        if (err) return res.status(500).json({ error: err.message });
         const mappedRows = rows.map(row => ({
             ...row,
             TypeOfProduct: getProductLabel(row.TypeOfProduct)
