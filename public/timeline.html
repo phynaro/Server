@@ -157,6 +157,18 @@
 
         buildLegend();
 
+        let resizeTimer;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                const from = document.getElementById('fromDate').value;
+                const to   = document.getElementById('toDate').value;
+                if (from && to && window._lastTimelineData) {
+                    renderChart(window._lastTimelineData, from, to);
+                }
+            }, 150);
+        });
+
         // ── SVG helpers ──────────────────────────────────────────────
         function svgEl(tag, attrs) {
             const e = document.createElementNS(SVG_NS, tag);
@@ -319,6 +331,7 @@
                 const res = await fetch(`/api/raw?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
                 if (!res.ok) throw new Error('Server error ' + res.status);
                 const data = await res.json();
+                window._lastTimelineData = data;
                 clearDataStatus('dataStatus');
                 if (data.length === 0) {
                     document.getElementById('chartMeta').textContent = 'No events for this period.';
