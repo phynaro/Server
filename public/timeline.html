@@ -224,7 +224,49 @@
                 svg.appendChild(lbl);
             }
 
-            // bars added in Task 6
+            // ── Partition data by source ──
+            const byLane = {};
+            LANES.forEach(s => { byLane[s] = []; });
+            data.forEach(row => {
+                if (byLane[row.Source] !== undefined) byLane[row.Source].push(row);
+            });
+
+            // ── Render bars ──
+            const tip = document.getElementById('chartTooltip');
+
+            LANES.forEach((source, i) => {
+                const laneY = PAD_T + i * LANE_H;
+                const barY  = laneY + Math.round((LANE_BG - BAR_H) / 2);
+
+                byLane[source].forEach(row => {
+                    const evMs = parseToMs(row.LocalDateTime);
+                    const x    = chartX + ((evMs - fromMs) / rangeMs) * chartW;
+
+                    // skip bars outside visible range
+                    if (x + BAR_W < chartX || x > chartX + chartW) return;
+
+                    const rect = svgEl('rect', {
+                        x: Math.round(x), y: barY,
+                        width: BAR_W, height: BAR_H,
+                        rx: 1, fill: getColor(row.TypeOfProduct)
+                    });
+
+                    rect.addEventListener('mouseover', (e) => {
+                        tip.style.display = 'block';
+                        tip.style.left    = (e.clientX + 14) + 'px';
+                        tip.style.top     = (e.clientY - 10) + 'px';
+                        tip.innerHTML =
+                            `<div><span class="tl">Time</span> ${row.LocalDateTime}</div>` +
+                            `<div><span class="tl">Source</span> ${row.Source}</div>` +
+                            `<div><span class="tl">Product</span> ${row.TypeOfProduct || '—'}</div>` +
+                            `<div><span class="tl">Qty</span> ${row.Qty ?? '—'}</div>`;
+                    });
+
+                    svg.appendChild(rect);
+                });
+            });
+
+            svg.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
         }
 
         // ── Filter bar ───────────────────────────────────────────────
