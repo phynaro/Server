@@ -84,7 +84,78 @@
     <div id="chartTooltip"></div>
 
     <script>
-        // JS added in subsequent tasks
+        // ── Constants ────────────────────────────────────────────────
+        const SVG_NS  = 'http://www.w3.org/2000/svg';
+        const LABEL_W = 72;   // px: lane label column width
+        const LANE_H  = 50;   // px: total height per lane (bg = 34px + 6px gap)
+        const LANE_BG = 34;   // px: lane background rect height
+        const BAR_H   = 26;   // px: event bar height
+        const BAR_W   = 5;    // px: event bar fixed width
+        const AXIS_H  = 22;   // px: time axis row below lanes
+        const PAD_T   = 16;   // px: top padding before first lane
+        const PAD_R   = 8;    // px: right padding
+
+        const LANES = [
+            'CaseForming', 'CasePacker1', 'CasePacker2',
+            'CasePacker3', 'CapCloser',   'Palletizer'
+        ];
+
+        // Matches colorPalette in server.js exactly
+        const COLOR_MAP = {
+            '60P':  'rgba(46,125,50,0.7)',
+            '60PA': 'rgba(76,175,80,0.7)',
+            '60PB': 'rgba(129,199,132,0.7)',
+            '50P':  'rgba(21,101,192,0.7)',
+            '50PA': 'rgba(33,150,243,0.7)',
+            '50PB': 'rgba(100,181,246,0.7)',
+            '30P':  'rgba(106,27,154,0.7)',
+            '30PA': 'rgba(156,39,176,0.7)',
+            '30PB': 'rgba(186,104,200,0.7)',
+        };
+        const COLOR_OTHER = 'rgba(158,158,158,0.7)';
+
+        function getColor(product) {
+            if (!product) return COLOR_OTHER;
+            if (COLOR_MAP[product]) return COLOR_MAP[product];
+            if (product.includes('60')) return COLOR_MAP['60P'];
+            if (product.includes('50')) return COLOR_MAP['50P'];
+            if (product.includes('30')) return COLOR_MAP['30P'];
+            return COLOR_OTHER;
+        }
+
+        // Parse a local-time string (datetime-local input or LocalDateTime from API)
+        // to milliseconds, always treating as UTC+7.
+        function parseToMs(str) {
+            const s = str.trim().replace(' ', 'T');
+            const withTz = (s.includes('+') || s.endsWith('Z')) ? s : s + '+07:00';
+            return new Date(withTz).getTime();
+        }
+
+        function toLocalISO(date) {
+            const off = date.getTimezoneOffset() * 60000;
+            return new Date(date - off).toISOString().slice(0, 16);
+        }
+
+        function buildLegend() {
+            const container = document.getElementById('chartLegend');
+            const groups = [
+                { items: [['60P','rgba(46,125,50,0.7)'],['60PA','rgba(76,175,80,0.7)'],['60PB','rgba(129,199,132,0.7)']] },
+                { items: [['50P','rgba(21,101,192,0.7)'],['50PA','rgba(33,150,243,0.7)'],['50PB','rgba(100,181,246,0.7)']] },
+                { items: [['30P','rgba(106,27,154,0.7)'],['30PA','rgba(156,39,176,0.7)'],['30PB','rgba(186,104,200,0.7)']] },
+                { items: [['Other','rgba(158,158,158,0.7)']] },
+            ];
+            container.innerHTML = groups.map((g, gi) =>
+                (gi > 0 ? '<div class="legend-sep"></div>' : '') +
+                '<div class="legend-group">' +
+                g.items.map(([label, color]) =>
+                    `<div class="legend-item">` +
+                    `<div class="legend-dot" style="background:${color}"></div>${label}</div>`
+                ).join('') +
+                '</div>'
+            ).join('');
+        }
+
+        buildLegend();
     </script>
 </body>
 </html>
