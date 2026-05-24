@@ -197,6 +197,7 @@
         async function loadData() {
             const from = document.getElementById('fromDate').value;
             const to   = document.getElementById('toDate').value;
+            if (!from || !to) return;
             showDataStatus('dataStatus', 'loading', 'Loading…');
             try {
                 const res = await fetch(`/api/raw?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
