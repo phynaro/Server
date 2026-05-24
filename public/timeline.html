@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Production Timeline — Production Performance</title>
+    <link rel="stylesheet" href="shared.css">
+    <script src="shared.js"></script>
+    <style>
+        .card-meta { font-size: 0.78rem; color: #888; margin-bottom: 14px; }
+        .legend { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding-bottom: 14px; border-bottom: 1px solid #f0f0f0; }
+        .legend-group { display: flex; gap: 8px; align-items: center; }
+        .legend-sep { width: 1px; background: #e0e0e0; height: 14px; }
+        .legend-item { display: flex; align-items: center; gap: 4px; font-size: 0.75rem; color: #555; }
+        .legend-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+        .chart-wrap { overflow-x: auto; }
+        #swimlaneSvg { display: block; }
+        #chartTooltip {
+            display: none; position: fixed;
+            background: #111; color: #fff;
+            border-radius: 5px; padding: 8px 12px;
+            font-size: 0.78rem; pointer-events: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+            z-index: 100; white-space: nowrap; line-height: 1.6;
+        }
+        #chartTooltip .tl { color: #aaa; display: inline-block; min-width: 52px; }
+        .date-toggle { display: flex; align-items: center; gap: 8px; }
+        .date-toggle span { color: #ccc; }
+        .date-opt { text-decoration: none; color: #888; font-size: 0.85rem; font-weight: 600; }
+        .date-opt:hover { color: #333; }
+        .date-opt.active { color: #111; font-weight: 700; border-bottom: 2px solid #111; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="brand-group">
+                <img src="https://kinetix.co.th/wp-content/uploads/2023/02/cropped-Kinetix_Web_Logo2-1.png" alt="Kinetix Logo" class="logo">
+                <div class="brand-text">
+                    <div class="company-name">Thantawan Industry Vietnam</div>
+                    <div class="dashboard-title">Production Performance</div>
+                </div>
+            </div>
+            <button class="menu-toggle" onclick="toggleMenu()" aria-label="Toggle navigation">
+                <span></span><span></span><span></span>
+            </button>
+            <div class="nav-menu" id="navMenu">
+                <a href="index.html" class="nav-link">Production Dashboard</a>
+                <a href="oee.html" class="nav-link">OEE Dashboard</a>
+                <a href="reliability.html" class="nav-link">Reliability Trends</a>
+                <a href="timeline.html" class="nav-link active">Production Timeline</a>
+                <a href="quality.html" class="nav-link">Quality Data</a>
+                <a href="settings.html" class="nav-link">Settings</a>
+            </div>
+        </header>
+
+        <div class="filters">
+            <div class="date-toggle">
+                <a href="#" class="date-opt active" id="optToday" onclick="setRange('today'); return false;">Today</a>
+                <span>·</span>
+                <a href="#" class="date-opt" id="opt7days" onclick="setRange('7days'); return false;">Last 7 Days</a>
+                <span>·</span>
+                <a href="#" class="date-opt" id="optCustom" onclick="setRange('custom'); return false;">Custom</a>
+            </div>
+            <div class="filter-group"><label>From</label><input type="datetime-local" id="fromDate"></div>
+            <div class="filter-group"><label>To</label><input type="datetime-local" id="toDate"></div>
+            <button onclick="loadData()">Refresh</button>
+        </div>
+
+        <div class="card">
+            <h2>Production Timeline — All Machines</h2>
+            <div class="card-meta" id="chartMeta"></div>
+            <div class="status-line" id="dataStatus"></div>
+            <div class="legend" id="chartLegend"></div>
+            <div class="chart-wrap">
+                <svg id="swimlaneSvg"></svg>
+            </div>
+            <div style="font-size:0.72rem;color:#aaa;margin-top:6px;">
+                Palletizer fires once per completed pallet — sparse bars are expected.
+            </div>
+        </div>
+    </div>
+
+    <div id="chartTooltip"></div>
+
+    <script>
+        // JS added in subsequent tasks
+    </script>
+</body>
+</html>
