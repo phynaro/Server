@@ -157,6 +157,76 @@
 
         buildLegend();
 
+        // ── SVG helpers ──────────────────────────────────────────────
+        function svgEl(tag, attrs) {
+            const e = document.createElementNS(SVG_NS, tag);
+            Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v));
+            return e;
+        }
+
+        // ── Chart renderer ───────────────────────────────────────────
+        function renderChart(data, fromStr, toStr) {
+            const svg     = document.getElementById('swimlaneSvg');
+            const totalW  = Math.max(svg.parentElement.clientWidth || 900, 500);
+            const chartX  = LABEL_W;
+            const chartW  = totalW - LABEL_W - PAD_R;
+            const axisY   = PAD_T + LANES.length * LANE_H;
+            const totalH  = axisY + AXIS_H;
+            const fromMs  = parseToMs(fromStr);
+            const toMs    = parseToMs(toStr);
+            const rangeMs = toMs - fromMs;
+
+            svg.setAttribute('width', totalW);
+            svg.setAttribute('height', totalH);
+            svg.innerHTML = '';
+
+            if (rangeMs <= 0) return;
+
+            // ── Lane backgrounds and labels ──
+            LANES.forEach((source, i) => {
+                const laneY = PAD_T + i * LANE_H;
+
+                svg.appendChild(svgEl('rect', {
+                    x: chartX, y: laneY, width: chartW, height: LANE_BG,
+                    rx: 3, fill: '#f9f9f9', stroke: '#ececec', 'stroke-width': 1
+                }));
+
+                const lbl = svgEl('text', {
+                    x: chartX - 6,
+                    y: laneY + Math.round(LANE_BG / 2) + 4,
+                    'text-anchor': 'end', 'font-size': 10,
+                    fill: '#555', 'font-family': 'sans-serif'
+                });
+                lbl.textContent = source;
+                svg.appendChild(lbl);
+            });
+
+            // ── Vertical grid lines and time-axis labels (hourly) ──
+            const t0 = new Date(fromMs);
+            t0.setMinutes(0, 0, 0);
+            if (t0.getTime() < fromMs) t0.setHours(t0.getHours() + 1);
+
+            for (let t = t0.getTime(); t <= toMs; t += 3600000) {
+                const x = chartX + ((t - fromMs) / rangeMs) * chartW;
+
+                svg.appendChild(svgEl('line', {
+                    x1: x, y1: PAD_T - 4, x2: x, y2: axisY,
+                    stroke: '#e8e8e8', 'stroke-width': 0.5, 'stroke-dasharray': '3,3'
+                }));
+
+                const d   = new Date(t);
+                const lbl = svgEl('text', {
+                    x, y: axisY + 14,
+                    'text-anchor': 'middle', 'font-size': 9,
+                    fill: '#bbb', 'font-family': 'sans-serif'
+                });
+                lbl.textContent = d.getHours().toString().padStart(2, '0') + ':00';
+                svg.appendChild(lbl);
+            }
+
+            // bars added in Task 6
+        }
+
         // ── Filter bar ───────────────────────────────────────────────
         function setRange(mode) {
             document.querySelectorAll('.date-opt').forEach(a => a.classList.remove('active'));
@@ -208,8 +278,7 @@
                     `${data.length.toLocaleString()} event${data.length === 1 ? '' : 's'}` +
                     (data.length === 5000 ? ' (limit reached — narrow your date range)' : '') +
                     ` · ${from.replace('T', ' ')} → ${to.replace('T', ' ')}`;
-                // renderChart called here in Task 5
-                console.log('Loaded', data.length, 'events');
+                renderChart(data, from, to);
             } catch (e) {
                 showDataStatus('dataStatus', 'error',
                     'Failed to load data. <a href="#" onclick="loadData(); return false;">Retry</a>');
