@@ -40,6 +40,7 @@
                 <a href="index.html" class="nav-link">Production Dashboard</a>
                 <a href="oee.html" class="nav-link">OEE Dashboard</a>
                 <a href="reliability.html" class="nav-link">Reliability Trends</a>
+                <a href="timeline.html" class="nav-link">Production Timeline</a>
                 <a href="quality.html" class="nav-link">Quality Data</a>
                 <a href="settings.html" class="nav-link">Settings</a>
             </div>
@@ -83,12 +84,13 @@
         };
 
         const COLUMNS = [
-            { key: 'id',            label: 'ID' },
+            { key: 'id',            label: 'ID',                exportOnly: true },
             { key: 'LocalDateTime', label: 'Local Timestamp' },
             { key: 'Source',        label: 'Source' },
             { key: 'TypeOfProduct', label: 'Product' },
-            { key: 'Qty',           label: 'Qty' }
+            { key: 'Qty',           label: 'Qty',               exportOnly: true }
         ];
+        const VISIBLE_COLUMNS = COLUMNS.filter(c => !c.exportOnly);
 
         function getParams() {
             return new URLSearchParams(window.location.search);
@@ -144,7 +146,7 @@
 
         // Build table header once
         document.getElementById('tableHead').innerHTML =
-            '<tr>' + COLUMNS.map(c => `<th>${c.label}</th>`).join('') + '</tr>';
+            '<tr>' + VISIBLE_COLUMNS.map(c => `<th>${c.label}</th>`).join('') + '</tr>';
 
         // Restore date range from URL params if present
         const urlFrom = params.get('from');
@@ -189,11 +191,11 @@
                   (data.length === 5000 ? ' (limit reached — narrow your date range)' : '');
 
             if (data.length === 0) {
-                body.innerHTML = `<tr><td colspan="${COLUMNS.length}" class="status-line">No data for this period.</td></tr>`;
+                body.innerHTML = `<tr><td colspan="${VISIBLE_COLUMNS.length}" class="status-line">No data for this period.</td></tr>`;
                 return;
             }
             body.innerHTML = data.map(row =>
-                '<tr>' + COLUMNS.map(c => `<td>${row[c.key] ?? ''}</td>`).join('') + '</tr>'
+                '<tr>' + VISIBLE_COLUMNS.map(c => `<td>${row[c.key] ?? ''}</td>`).join('') + '</tr>'
             ).join('');
         }
 
