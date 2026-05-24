@@ -253,13 +253,17 @@
 
                     rect.addEventListener('mouseover', (e) => {
                         tip.style.display = 'block';
-                        tip.style.left    = (e.clientX + 14) + 'px';
-                        tip.style.top     = (e.clientY - 10) + 'px';
                         tip.innerHTML =
                             `<div><span class="tl">Time</span> ${row.LocalDateTime}</div>` +
                             `<div><span class="tl">Source</span> ${row.Source}</div>` +
                             `<div><span class="tl">Product</span> ${row.TypeOfProduct || '—'}</div>` +
                             `<div><span class="tl">Qty</span> ${row.Qty ?? '—'}</div>`;
+                        const tipW = tip.offsetWidth  || 190;
+                        const tipH = tip.offsetHeight || 80;
+                        const left = Math.min(e.clientX + 14, window.innerWidth  - tipW - 8);
+                        const top  = Math.min(e.clientY - 10, window.innerHeight - tipH - 8);
+                        tip.style.left = left + 'px';
+                        tip.style.top  = top  + 'px';
                     });
 
                     svg.appendChild(rect);
@@ -316,6 +320,12 @@
                 if (!res.ok) throw new Error('Server error ' + res.status);
                 const data = await res.json();
                 clearDataStatus('dataStatus');
+                if (data.length === 0) {
+                    document.getElementById('chartMeta').textContent = 'No events for this period.';
+                    document.getElementById('swimlaneSvg').innerHTML = '';
+                    document.getElementById('swimlaneSvg').setAttribute('height', 0);
+                    return;
+                }
                 document.getElementById('chartMeta').textContent =
                     `${data.length.toLocaleString()} event${data.length === 1 ? '' : 's'}` +
                     (data.length === 5000 ? ' (limit reached — narrow your date range)' : '') +
