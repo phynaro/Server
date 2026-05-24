@@ -156,6 +156,67 @@
         }
 
         buildLegend();
+
+        // ── Filter bar ───────────────────────────────────────────────
+        function setRange(mode) {
+            document.querySelectorAll('.date-opt').forEach(a => a.classList.remove('active'));
+            const now = new Date();
+            if (mode === 'today') {
+                document.getElementById('optToday').classList.add('active');
+                const s = new Date(now);
+                if (s.getHours() < 6) s.setDate(s.getDate() - 1);
+                s.setHours(6, 0, 0, 0);
+                document.getElementById('fromDate').value = toLocalISO(s);
+                document.getElementById('toDate').value   = toLocalISO(now);
+            } else if (mode === '7days') {
+                document.getElementById('opt7days').classList.add('active');
+                const s = new Date(now);
+                s.setDate(s.getDate() - 7);
+                s.setHours(6, 0, 0, 0);
+                const e = new Date(now);
+                if (e.getHours() >= 6) e.setDate(e.getDate() + 1);
+                e.setHours(6, 0, 0, 0);
+                document.getElementById('fromDate').value = toLocalISO(s);
+                document.getElementById('toDate').value   = toLocalISO(e);
+            } else {
+                document.getElementById('optCustom').classList.add('active');
+            }
+            loadData();
+        }
+
+        document.getElementById('fromDate').addEventListener('change', () => {
+            document.querySelectorAll('.date-opt').forEach(a => a.classList.remove('active'));
+            document.getElementById('optCustom').classList.add('active');
+        });
+        document.getElementById('toDate').addEventListener('change', () => {
+            document.querySelectorAll('.date-opt').forEach(a => a.classList.remove('active'));
+            document.getElementById('optCustom').classList.add('active');
+        });
+
+        // ── Data loading (stub — chart added in Task 5) ──────────────
+        async function loadData() {
+            const from = document.getElementById('fromDate').value;
+            const to   = document.getElementById('toDate').value;
+            showDataStatus('dataStatus', 'loading', 'Loading…');
+            try {
+                const res = await fetch(`/api/raw?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
+                if (!res.ok) throw new Error('Server error ' + res.status);
+                const data = await res.json();
+                clearDataStatus('dataStatus');
+                document.getElementById('chartMeta').textContent =
+                    `${data.length.toLocaleString()} event${data.length === 1 ? '' : 's'}` +
+                    (data.length === 5000 ? ' (limit reached — narrow your date range)' : '') +
+                    ` · ${from.replace('T', ' ')} → ${to.replace('T', ' ')}`;
+                // renderChart called here in Task 5
+                console.log('Loaded', data.length, 'events');
+            } catch (e) {
+                showDataStatus('dataStatus', 'error',
+                    'Failed to load data. <a href="#" onclick="loadData(); return false;">Retry</a>');
+            }
+        }
+
+        // Initial load — default to today's shift
+        setRange('today');
     </script>
 </body>
 </html>
